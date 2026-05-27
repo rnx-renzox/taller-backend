@@ -20,6 +20,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
@@ -126,13 +127,26 @@ select option{background:var(--surface2)}
 .rep-tab{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text2);background:var(--surface);transition:.15s;user-select:none}
 .rep-tab:hover{background:var(--surface2);color:var(--text)}
 .rep-tab.active{background:var(--cyan-dim);color:var(--cyan);border-color:rgba(0,229,255,.25)}
-.rep-content{display:none;flex:1;overflow-y:auto;flex-direction:column;min-height:0}
-.rep-content.active{display:flex;flex-direction:column}
+.rep-content{display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden}
+.rep-content.active{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.rep-content .table-scroll{overflow-y:auto;flex:1}
 .report-bar-wrap{padding:5px 0}
 .report-bar-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
 .report-bar{height:7px;border-radius:4px;background:var(--surface3);overflow:hidden}
 .report-bar-fill{height:100%;border-radius:4px;transition:.4s}
 .printer-preview{background:#fff;color:#000;border-radius:8px;padding:14px;font-family:'Courier New',monospace;font-size:11px;line-height:1.5;white-space:pre;overflow-x:auto;border:2px dashed var(--border2)}
+.qr-ticket-wrap{margin-top:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;gap:14px}
+.qr-ticket-box{background:#fff;border-radius:6px;padding:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;width:72px;height:72px}
+.qr-ticket-box canvas,.qr-ticket-box img{width:64px!important;height:64px!important;display:block}
+.qr-ticket-info{flex:1}
+.qr-ticket-info p{font-size:11px;color:var(--text2);margin-bottom:4px;line-height:1.4}
+.qr-ticket-info a{font-size:10px;color:var(--cyan);word-break:break-all;text-decoration:none;font-family:var(--mono)}
+.qr-modal-wrap{margin-top:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;display:flex;align-items:center;gap:10px}
+.qr-modal-box{background:#fff;border-radius:5px;padding:3px;flex-shrink:0;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
+.qr-modal-box canvas,.qr-modal-box img{width:54px!important;height:54px!important;display:block}
+.qr-modal-info{flex:1}
+.qr-modal-info strong{font-size:11px;color:var(--cyan);display:block;margin-bottom:2px}
+.qr-modal-info span{font-size:10px;color:var(--text2);line-height:1.4}
 .db-config-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px}
 .db-option{display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--border);border-radius:9px;cursor:pointer;transition:.2s;margin-bottom:8px}
 .db-option:hover{border-color:var(--border2)}.db-option.selected{border-color:var(--cyan);background:rgba(0,229,255,.04)}
@@ -288,9 +302,9 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
   <div class="nav-item" id="nav-reportes" onclick="showPanel('reportes',this)">
     <div class="nav-icon">📋</div><span>Reportes</span>
   </div>
-  <div class="nav-section">Sistema</div>
-  <div class="nav-item" id="nav-basedatos" onclick="showPanel('basedatos',this)">
-    <div class="nav-icon">🗄️</div><span>Base de Datos</span>
+  <div class="nav-item" id="nav-pdvs" onclick="abrirListaPDVs()">
+    <div class="nav-icon">🏪</div><span>PDV</span>
+    <span class="nav-badge" id="badge-pdvs">0</span>
   </div>
   <div style="flex:1"></div>
   <div style="padding:8px 6px;border-top:1px solid var(--border);margin-top:6px">
@@ -336,7 +350,13 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
   </div>
   <div style="display:grid;grid-template-columns:1fr 300px;gap:12px;flex:1;min-height:0">
     <div class="table-wrap">
-      <div class="table-top"><span style="font-size:12px;font-weight:700">Equipos recientes</span></div>
+      <div class="table-top">
+        <span style="font-size:12px;font-weight:700">Equipos recientes</span>
+        <div style="margin-left:auto;display:flex;gap:4px">
+          <button class="btn btn-primary btn-sm" id="dash-btn-hoy" onclick="setDashFiltro('hoy')">Hoy</button>
+          <button class="btn btn-ghost btn-sm" id="dash-btn-todos" onclick="setDashFiltro('todos')">Todos</button>
+        </div>
+      </div>
       <div class="table-scroll">
         <table>
           <thead><tr><th>ID</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th>Fecha</th></tr></thead>
@@ -547,6 +567,13 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
       <div class="section-wrap">
         <div class="section-wrap-title">Vista previa</div>
         <div class="printer-preview" id="print-preview">Selecciona un cliente...</div>
+        <div class="qr-ticket-wrap" id="qr-print-wrap" style="display:none">
+          <div class="qr-ticket-box" id="qr-print-box"></div>
+          <div class="qr-ticket-info">
+            <p>📱 <strong style="color:var(--cyan)">QR Estado en Vivo</strong><br>El cliente escanea este código para ver el estado de su reparación en tiempo real.</p>
+            <a id="qr-print-link" href="#" target="_blank">—</a>
+          </div>
+        </div>
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="imprimirTicket()">🖨 Imprimir</button>
           <button class="btn btn-ghost btn-sm" onclick="generarPreview()">↻ Actualizar</button>
@@ -558,15 +585,15 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
 </div>
 
 <!-- ══ REPORTES ══ -->
-<div class="panel" id="panel-reportes">
-  <div class="panel-header">
+<div class="panel" id="panel-reportes" style="overflow:hidden">
+  <div class="panel-header" style="flex-shrink:0">
     <div><div class="panel-title">Reportes</div><div class="panel-sub">Análisis y estadísticas — Ronni GSM</div></div>
     <div class="panel-actions">
       <button class="btn btn-ghost btn-sm" onclick="exportarRepActivo('txt')">↓ TXT</button>
       <button class="btn btn-primary btn-sm" onclick="exportarRepActivo('csv')">↓ CSV</button>
     </div>
   </div>
-  <div class="rep-tabs">
+  <div class="rep-tabs" style="flex-shrink:0">
     <div class="rep-tab active" id="rtab-todos" onclick="cambiarRepTab('todos')">📋 Todos</div>
     <div class="rep-tab" id="rtab-diario" onclick="cambiarRepTab('diario')">📅 Hoy</div>
     <div class="rep-tab" id="rtab-semanal" onclick="cambiarRepTab('semanal')">📆 Esta semana</div>
@@ -645,9 +672,7 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
   <div class="bottom-nav-item" id="bn-impresora" onclick="showPanel('impresora',null,'bn-impresora')">
     <div class="bn-icon">🖨️</div><span>Impresora</span>
   </div>
-  <div class="bottom-nav-item" id="bn-basedatos" onclick="showPanel('basedatos',null,'bn-basedatos')">
-    <div class="bn-icon">🗄️</div><span>Sistema</span>
-  </div>
+
 </nav>
 
 <!-- MODAL NUEVA / EDITAR FICHA -->
@@ -664,11 +689,21 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
         <div class="tipo-btn active-cli" id="tipo-btn-cli" onclick="setTipoCliente('cliente')">👤 Cliente Final</div>
         <div class="tipo-btn" id="tipo-btn-pdv" onclick="setTipoCliente('pdv')">🏪 Punto de Venta</div>
       </div>
-      <div id="pdv-fields" style="display:none;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--orange)">
-        <div style="font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Datos del punto de venta</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div class="form-group"><label>Nombre del negocio *</label><input type="text" id="m-negocio" placeholder="Tienda / Local..."></div>
-          <div class="form-group"><label>RUC / DNI</label><input type="text" id="m-ruc" placeholder="20xxxxxxxxx"></div>
+      <div id="pdv-fields" style="display:none;margin-bottom:12px;padding:12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--orange)">
+        <div style="font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">🏪 Punto de Venta</div>
+        <div class="form-group">
+          <label>Seleccionar o crear PDV</label>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="m-pdv-input" list="pdv-datalist"
+              placeholder="Escribe para buscar o crear nuevo PDV..."
+              oninput="onPdvInput(this.value)"
+              style="flex:1"
+              autocomplete="off">
+            <datalist id="pdv-datalist"></datalist>
+            <button type="button" class="btn btn-sm" style="background:var(--orange-dim);color:var(--orange);border-color:var(--orange);white-space:nowrap"
+              onclick="verHistorialPDV()">📋 Historial</button>
+          </div>
+          <div id="pdv-sel-info" style="display:none;margin-top:6px;padding:6px 8px;background:var(--surface3);border-radius:6px;font-size:11px;color:var(--text2)"></div>
         </div>
       </div>
       <div class="form-grid">
@@ -720,10 +755,17 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
     </div>
     <div class="modal-body">
       <div class="printer-preview" id="modal-ticket-preview" style="font-size:10px"></div>
+      <div class="qr-modal-wrap" id="qr-modal-wrap" style="display:none">
+        <div class="qr-modal-box" id="qr-modal-box"></div>
+        <div class="qr-modal-info">
+          <strong>📱 Estado en tiempo real</strong>
+          <span>El cliente escanea este QR para ver el estado de su reparación en vivo.</span>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('ticket')">Cerrar</button>
-      <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir</button>
+      <button class="btn btn-primary" id="btn-imprimir-modal" onclick="imprimirDesdeModal(_ticketClienteId)">🖨 Imprimir</button>
     </div>
   </div>
 </div>
@@ -910,35 +952,133 @@ tr.st-garantia td:first-child{border-left:3px solid var(--purple)}
   </div>
 </div>
 
+<!-- MODAL HISTORIAL PDV -->
+<div class="modal-overlay" id="modal-pdv-historial">
+  <div class="modal" style="width:720px;max-width:97vw">
+    <div class="modal-header">
+      <span style="font-size:18px">🏪</span>
+      <div class="modal-title" id="pdv-hist-titulo">Historial PDV</div>
+      <div class="modal-close" onclick="closeModal('pdv-historial')">✕</div>
+    </div>
+    <div class="modal-body" style="padding:16px">
+      <!-- Selector de PDV -->
+      <!-- Selector PDV + crear nuevo -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin:0">
+          <label>Punto de Venta</label>
+          <select id="pdv-hist-sel" onchange="cargarHistorialPDV(this.value)" style="width:100%">
+            <option value="">— Seleccionar PDV —</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" style="background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange)" onclick="toggleNuevoPDVForm()">✚ Nuevo PDV</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportarHistorialPDV('txt')">↓ TXT</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportarHistorialPDV('csv')">↓ CSV</button>
+        </div>
+      </div>
+      <!-- Form crear nuevo PDV (oculto por defecto) -->
+      <div id="nuevo-pdv-form" style="display:none;background:var(--surface2);border:1px solid var(--orange);border-radius:9px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px">🏪 Crear nuevo Punto de Venta</div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div class="form-group" style="flex:1;margin:0">
+            <label>Nombre del PDV *</label>
+            <input type="text" id="nuevo-pdv-nombre" placeholder="Ej: Móviles Express, TechStore..." 
+              onkeydown="if(event.key==='Enter')crearNuevoPDV()">
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-primary" onclick="crearNuevoPDV()">Guardar</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleNuevoPDVForm()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+      <!-- Stats PDV -->
+      <div id="pdv-hist-stats" style="display:none;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Trabajos</div>
+            <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--cyan)" id="pdv-stat-total">0</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Facturado</div>
+            <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--purple)" id="pdv-stat-factura">S/ 0</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Cobrado</div>
+            <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--green)" id="pdv-stat-cobrado">S/ 0</div>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 12px">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Pendiente</div>
+            <div style="font-size:18px;font-weight:700;font-family:var(--mono);color:var(--amber)" id="pdv-stat-pend">S/ 0</div>
+          </div>
+        </div>
+      </div>
+      <!-- Tabla historial -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;max-height:380px;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead style="position:sticky;top:0">
+            <tr style="background:var(--surface2)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">ID</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Contacto</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Equipo</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Servicio</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Estado</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Precio</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Cobrado</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase">Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="pdv-hist-tbody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Selecciona un PDV para ver su historial</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('pdv-historial')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toasts"></div>
 <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
 
 <script>
 // ══════════════════════════════════════════
-//  RONNI GSM v3.2 — LOCAL + NUBE Google Drive
+//  RONNI GSM v3.3 — JS limpio y completo
 // ══════════════════════════════════════════
 
-// ── CONFIG ──
 const API_URL = 'https://ronni-gsm-backend.onrender.com';
+const LANDING_URL = 'https://ronni-gsm-estado.onrender.com';
 
 // ── STATE ──
 let DB_MODE = localStorage.getItem('ronni_db_mode') || 'local';
 let editingId = null;
 let verClienteId = null;
+let _ticketClienteId = null;
 let tipoTicket = 'ingreso';
 let tipoClienteActual = 'cliente';
 let repTabActivo = 'todos';
 let ingPeriodoActual = 'todos';
 let ingDataActual = [];
 let repDataActual = {};
-let _cache = null; // cache clientes nube
+let _cache = null;
+let _cierreId = null;
 
-// ── LOCAL ──
+// ── LOCAL STORAGE ──
 function getClientesLocal() {
   try { return JSON.parse(localStorage.getItem('ronni_clientes') || '[]'); } catch(e) { return []; }
 }
-function saveClientesLocal(arr) {
-  localStorage.setItem('ronni_clientes', JSON.stringify(arr));
+function saveClientesLocal(arr) { localStorage.setItem('ronni_clientes', JSON.stringify(arr)); }
+function getPDVs() {
+  try { return JSON.parse(localStorage.getItem('ronni_pdvs') || '[]'); } catch { return []; }
+}
+function savePDVs(arr) { localStorage.setItem('ronni_pdvs', JSON.stringify(arr)); }
+function getPDVById(id) { return getPDVs().find(p => p.id === id) || null; }
+function nextPdvId() {
+  const p = getPDVs();
+  if (!p.length) return 'PDV-001';
+  const nums = p.map(x => parseInt((x.id||'').split('-')[1]||0)).filter(n=>!isNaN(n));
+  return 'PDV-' + (Math.max(...nums,0)+1).toString().padStart(3,'0');
 }
 
 // ── NUBE ──
@@ -967,7 +1107,6 @@ function saveClientes(arr) {
   if (DB_MODE === 'cloud') {
     _cache = arr;
     updateBadges();
-    // sincronizar en background
     Promise.all(arr.map(c => saveClienteNube(c)))
       .catch(e => toast('Error nube: ' + e.message, 'err'));
   } else {
@@ -976,23 +1115,22 @@ function saveClientes(arr) {
   }
 }
 
-// ── LOADING OVERLAY ──
+// ── LOADING ──
 function showLoading(show, msg) {
   let el = document.getElementById('ronni-loading');
   if (!el) {
     el = document.createElement('div');
     el.id = 'ronni-loading';
     el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px)';
-    el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:28px 36px;text-align:center;min-width:260px"><div id="loading-icon" style="font-size:32px;margin-bottom:10px">☁️</div><div id="loading-msg" style="font-size:13px;font-weight:600;color:var(--cyan)">Conectando...</div><div style="font-size:11px;color:var(--text2);margin-top:4px">Primera vez puede tardar ~30 seg (Render free)</div></div>';
+    el.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:28px 36px;text-align:center;min-width:260px"><div style="font-size:32px;margin-bottom:10px">☁️</div><div id="loading-msg" style="font-size:13px;font-weight:600;color:var(--cyan)">Conectando...</div><div style="font-size:11px;color:var(--text2);margin-top:4px">Primera vez puede tardar ~30 seg</div></div>';
     document.body.appendChild(el);
   }
-  if (msg) document.getElementById('loading-msg').textContent = msg;
+  if (msg) { const m = document.getElementById('loading-msg'); if(m) m.textContent = msg; }
   el.style.display = show ? 'flex' : 'none';
 }
 
-// ── CARGAR DATOS (llamar al iniciar y al cambiar modo) ──
 async function cargarDatos() {
-  showLoading(true, DB_MODE === 'cloud' ? 'Conectando con Google Drive...' : 'Cargando datos locales...');
+  showLoading(true, DB_MODE === 'cloud' ? 'Conectando con Google Drive...' : 'Cargando...');
   try {
     if (DB_MODE === 'cloud') {
       _cache = await fetchClientesNube();
@@ -1005,7 +1143,6 @@ async function cargarDatos() {
     refreshDash();
   } catch(e) {
     toast('Sin conexión a la nube: ' + e.message, 'err');
-    // fallback a local
     DB_MODE = 'local';
     localStorage.setItem('ronni_db_mode','local');
     applyDBModeUI();
@@ -1017,38 +1154,71 @@ async function cargarDatos() {
   }
 }
 
+// ── DEMO DATA ──
+function loadDemoData() {
+  if (getClientesLocal().length) return;
+  const demo = [
+    {id:'GSM-001',nombre:'Carlos Mamani',telefono:'987654321',equipo:'Samsung',modelo:'Galaxy A54',imei:'356789012345678',color:'Negro',problema:'Pantalla rota',estado:'Pendiente',precio:'180',fecha:today(),hora:hora(),servicio:'Cambio de pantalla',tecnico:'Luis',adelanto:'50',fisico:'Pantalla rota',accesorios:'Solo equipo',pin:'1234',tipoCliente:'cliente',negocio:'',ruc:'',pdvId:''},
+    {id:'GSM-002',nombre:'María Torres',telefono:'912345678',equipo:'iPhone',modelo:'13 Pro',imei:'353679234567890',color:'Azul',problema:'Batería se agota rápido',estado:'En proceso',precio:'120',fecha:today(),hora:hora(),servicio:'Cambio de batería',tecnico:'Ana',adelanto:'60',fisico:'Bueno',accesorios:'Cargador',pin:'',tipoCliente:'cliente',negocio:'',ruc:'',pdvId:''},
+    {id:'GSM-003',nombre:'José Quispe',telefono:'999111222',equipo:'Xiaomi',modelo:'Redmi Note 12',imei:'867539012345670',color:'Blanco',problema:'No carga',estado:'Listo',precio:'80',fecha:today(),hora:hora(),servicio:'Cambio de conector carga',tecnico:'Luis',adelanto:'0',fisico:'Bueno',accesorios:'',pin:'0000',tipoCliente:'cliente',negocio:'',ruc:'',pdvId:''},
+    {id:'GSM-004',nombre:'Móviles Express',telefono:'955666777',equipo:'Motorola',modelo:'Edge 30',imei:'490154203237518',color:'Gris',problema:'Se mojó',estado:'En proceso',precio:'250',fecha:today(),hora:hora(),servicio:'Limpieza por líquido',tecnico:'Pedro',adelanto:'100',fisico:'Mojado',accesorios:'Case',pin:'',tipoCliente:'pdv',negocio:'Móviles Express',ruc:'',pdvId:'PDV-001'},
+    {id:'GSM-005',nombre:'Pedro Vásquez',telefono:'944333111',equipo:'Huawei',modelo:'P30 Lite',imei:'356789012345699',color:'Dorado',problema:'Flash quemado',estado:'Entregado',precio:'150',fecha:today(),hora:hora(),servicio:'Flash / Firmware',tecnico:'Ana',adelanto:'150',fisico:'Bueno',accesorios:'',pin:'',tipoCliente:'cliente',negocio:'',ruc:'',pdvId:'',totalCobrado:'150',metodoPago:'efectivo',pagoCierre:'0',fechaEntrega:today()}
+  ];
+  saveClientesLocal(demo);
+  if (!getPDVs().length) savePDVs([{id:'PDV-001',nombre:'Móviles Express',creado:today()}]);
+}
+
+function today() {
+  // Usa fecha LOCAL del sistema, no UTC — evita el problema de cambio de día a medianoche UTC
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd= String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+// Día operativo: el día según el reloj local del dispositivo
+// Los equipos pendientes/listos se mantienen en el dashboard indefinidamente hasta cobro
+function diaOperativo() { return today(); }
+function hora()  { return new Date().toTimeString().slice(0,5); }
 function nextId() {
   const c = getClientes();
   if (!c.length) return 'GSM-001';
-  const nums = c.map(x => parseInt((x.id||'').split('-')[1] || 0)).filter(n => !isNaN(n));
-  return 'GSM-' + (Math.max(...nums, 0) + 1).toString().padStart(3, '0');
+  const nums = c.map(x => parseInt((x.id||'').split('-')[1]||0)).filter(n=>!isNaN(n));
+  return 'GSM-' + (Math.max(...nums,0)+1).toString().padStart(3,'0');
 }
-function today() { return new Date().toISOString().split('T')[0]; }
-function hora()  { return new Date().toTimeString().slice(0, 5); }
 
-// ── DEMO DATA ──
-function loadDemoData() {
-  if (getClientes().length) return;
-  const demo = [
-    {id:'GSM-001',nombre:'Carlos Mamani',telefono:'987654321',equipo:'Samsung',modelo:'Galaxy A54',imei:'356789012345678',color:'Negro',problema:'Pantalla rota, no enciende',estado:'Pendiente',precio:'180',fecha:today(),hora:hora(),servicio:'Cambio de pantalla',tecnico:'Luis',adelanto:'50',fisico:'Pantalla rota',accesorios:'Solo equipo',pin:'1234',tipoCliente:'cliente',negocio:'',ruc:''},
-    {id:'GSM-002',nombre:'María Torres',telefono:'912345678',equipo:'iPhone',modelo:'13 Pro',imei:'353679234567890',color:'Azul',problema:'Batería se agota rápido',estado:'En proceso',precio:'120',fecha:today(),hora:hora(),servicio:'Cambio de batería',tecnico:'Ana',adelanto:'60',fisico:'Bueno',accesorios:'Cargador',pin:'',tipoCliente:'cliente',negocio:'',ruc:''},
-    {id:'GSM-003',nombre:'José Quispe',telefono:'999111222',equipo:'Xiaomi',modelo:'Redmi Note 12',imei:'867539012345670',color:'Blanco',problema:'No carga, conector dañado',estado:'Listo',precio:'80',fecha:today(),hora:hora(),servicio:'Cambio de conector carga',tecnico:'Luis',adelanto:'0',fisico:'Bueno',accesorios:'',pin:'0000',tipoCliente:'cliente',negocio:'',ruc:''},
-    {id:'GSM-004',nombre:'Móviles Express',telefono:'955666777',equipo:'Motorola',modelo:'Edge 30',imei:'490154203237518',color:'Gris',problema:'Se mojó, no enciende',estado:'En proceso',precio:'250',fecha:today(),hora:hora(),servicio:'Limpieza por líquido',tecnico:'Pedro',adelanto:'100',fisico:'Mojado / líquido',accesorios:'Case',pin:'',tipoCliente:'pdv',negocio:'Móviles Express',ruc:'20123456789'},
-    {id:'GSM-005',nombre:'Pedro Vásquez',telefono:'944333111',equipo:'Huawei',modelo:'P30 Lite',imei:'356789012345699',color:'Dorado',problema:'Flash quemado, necesita firmware',estado:'Entregado',precio:'150',fecha:today(),hora:hora(),servicio:'Flash / Firmware',tecnico:'Ana',adelanto:'150',fisico:'Bueno',accesorios:'',pin:'',tipoCliente:'cliente',negocio:'',ruc:''},
-  ];
-  saveClientes(demo);
+// ── COBRO HELPERS ──
+function getCobrado(x) { return parseFloat(x.totalCobrado || x.adelanto || 0); }
+function getEfectivo(x) {
+  if (x.estado !== 'Entregado') return 0;
+  if (x.metodoPago === 'efectivo') return parseFloat(x.pagoCierre||0) + parseFloat(x.adelanto||0);
+  return parseFloat(x.adelanto||0);
 }
+function getYape(x) {
+  if (x.estado !== 'Entregado') return 0;
+  if (x.metodoPago === 'yape' || x.metodoPago === 'transferencia') return parseFloat(x.pagoCierre||0);
+  return 0;
+}
+function metodoBadge(m) {
+  if (!m || m === 'garantia') return '';
+  const map = {efectivo:['💵','var(--green)','var(--green-dim)'],yape:['💜','var(--purple)','var(--purple-dim)'],transferencia:['🏦','#00b4ff','#001a3a'],mixto:['🔀','var(--amber)','var(--amber-dim)']};
+  const [ico,col,bg] = map[m] || ['💳','var(--text2)','var(--surface3)'];
+  return '<span style="font-size:10px;background:'+bg+';color:'+col+';border-radius:4px;padding:1px 6px;font-weight:700">'+ico+' '+m+'</span>';
+}
+function estadoClass(e) {
+  return {Pendiente:'pendiente','En proceso':'proceso',Listo:'listo',Entregado:'entregado','Garantía':'garantia',Cancelado:'cancelado'}[e] || 'pendiente';
+}
+function badgeHTML(e) { return '<span class="badge '+estadoClass(e)+'">'+e+'</span>'; }
 
 // ── NAV ──
 function showPanel(id, el, bnId) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('panel-' + id).classList.add('active');
-  // sidebar nav
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.add('active');
   if (el) el.classList.add('active');
   else { const nav = document.getElementById('nav-' + id); if (nav) nav.classList.add('active'); }
-  // bottom nav
   if (bnId) { const bn = document.getElementById(bnId); if (bn) bn.classList.add('active'); }
   else { const bn = document.getElementById('bn-' + id); if (bn) bn.classList.add('active'); }
   if (id === 'dashboard')  refreshDash();
@@ -1057,7 +1227,6 @@ function showPanel(id, el, bnId) {
   if (id === 'impresora')  poblarPrintSelect();
   if (id === 'basedatos')  updateDBInfo();
 }
-
 function irClientes(filtro) {
   showPanel('clientes', document.getElementById('nav-clientes'));
   document.getElementById('filter-estado').value = filtro;
@@ -1067,19 +1236,72 @@ function irClientes(filtro) {
 // ── BADGES ──
 function updateBadges() {
   const c = getClientes();
-  document.getElementById('badge-clientes').textContent = c.length;
-  document.getElementById('topbar-count').textContent = c.length + ' equipos';
-  const bnb = document.getElementById('bn-badge'); if (bnb) bnb.textContent = c.length;
+  const bc = document.getElementById('badge-clientes'); if(bc) bc.textContent = c.length;
+  const tc = document.getElementById('topbar-count');   if(tc) tc.textContent = c.length + ' equipos';
+  const bnb = document.getElementById('bn-badge');      if(bnb) bnb.textContent = c.length;
+  const bp  = document.getElementById('badge-pdvs');    if(bp)  bp.textContent  = getPDVs().length;
 }
 
 // ── DASHBOARD ──
+let dashFiltro = 'hoy';
+function setDashFiltro(filtro) {
+  dashFiltro = filtro;
+  const btnHoy   = document.getElementById('dash-btn-hoy');
+  const btnTodos = document.getElementById('dash-btn-todos');
+  if (btnHoy)   btnHoy.className   = filtro==='hoy'   ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  if (btnTodos) btnTodos.className = filtro==='todos' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  renderDashTabla();
+}
+function renderDashTabla() {
+  const todos = getClientes();
+  const hoy   = diaOperativo();
+  let c;
+  if (dashFiltro === 'hoy') {
+    // Mostrar: equipos ingresados HOY + todos los pendientes/listos sin cobrar de días anteriores
+    const deHoy     = todos.filter(x => x.fecha === hoy);
+    const pendAntes = todos.filter(x =>
+      x.fecha !== hoy &&
+      (x.estado === 'Pendiente' || x.estado === 'En proceso' || x.estado === 'Listo')
+    );
+    // Unir sin duplicados, hoy primero, luego pendientes anteriores
+    const ids = new Set(deHoy.map(x=>x.id));
+    c = [...deHoy, ...pendAntes.filter(x=>!ids.has(x.id))];
+  } else {
+    c = todos;
+  }
+  const tbody = document.getElementById('dash-tbody');
+  tbody.innerHTML = '';
+  c.slice(0,20).forEach(x => {
+    const tr = document.createElement('tr');
+    tr.className = 'st-' + estadoClass(x.estado);
+    tr.onclick = () => verFicha(x.id);
+    const tb = x.tipoCliente==='pdv'
+      ? '<span style="font-size:8px;background:var(--orange-dim);color:var(--orange);border-radius:3px;padding:1px 4px;font-weight:700;margin-left:4px">PDV</span>'
+      : '<span style="font-size:8px;background:var(--cyan-dim);color:var(--cyan);border-radius:3px;padding:1px 4px;font-weight:700;margin-left:4px">CLI</span>';
+    // Marcar si es de un día anterior (pendiente arrastrado)
+    const esAnterior = x.fecha !== hoy && (x.estado==='Pendiente'||x.estado==='En proceso'||x.estado==='Listo');
+    const fechaTag = esAnterior
+      ? '<span style="font-size:9px;color:var(--amber);margin-left:2px" title="Pendiente de día anterior">⏳ '+(x.fecha||'')+'</span>'
+      : '<span style="font-size:11px;color:var(--text2)">'+(x.fecha||'')+'</span>';
+    tr.innerHTML =
+      '<td><span class="id-chip">'+x.id+'</span></td>'+
+      '<td style="font-weight:500">'+x.nombre+tb+'</td>'+
+      '<td>'+(x.equipo||'')+' '+(x.modelo||'')+'</td>'+
+      '<td>'+badgeHTML(x.estado)+'</td>'+
+      '<td>'+fechaTag+'</td>';
+    tbody.appendChild(tr);
+  });
+  if (!c.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sin equipos para mostrar</td></tr>';
+  }
+}
 function refreshDash() {
   const c = getClientes();
-  const est = {Pendiente:0,'En proceso':0,Listo:0,Entregado:0,Cancelado:0};
+  const est = {Pendiente:0,'En proceso':0,Listo:0,Entregado:0,'Garantía':0,Cancelado:0};
   let total = 0;
   c.forEach(x => {
     if (est[x.estado] !== undefined) est[x.estado]++;
-    total += parseFloat(x.precio || 0);
+    total += parseFloat(x.precio||0);
   });
   document.getElementById('s-total').textContent    = c.length;
   document.getElementById('s-pend').textContent     = est['Pendiente'];
@@ -1088,68 +1310,92 @@ function refreshDash() {
   document.getElementById('r-proceso').textContent  = est['En proceso'];
   document.getElementById('r-entregado').textContent= est['Entregado'];
   document.getElementById('r-cancelado').textContent= est['Cancelado'];
-  document.getElementById('dash-fecha').textContent = new Date().toLocaleDateString('es-PE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-  const tbody = document.getElementById('dash-tbody');
-  tbody.innerHTML = '';
-  c.slice(0, 10).forEach(x => {
-    const tr = document.createElement('tr');
-    tr.className = 'st-' + estadoClass(x.estado);
-    tr.onclick = () => verFicha(x.id);
-    const tb = x.tipoCliente==='pdv'
-      ? '<span style="font-size:8px;background:var(--orange-dim);color:var(--orange);border-radius:3px;padding:1px 4px;font-weight:700;margin-left:4px">PDV</span>'
-      : '<span style="font-size:8px;background:var(--cyan-dim);color:var(--cyan);border-radius:3px;padding:1px 4px;font-weight:700;margin-left:4px">CLI</span>';
-    tr.innerHTML = `<td><span class="id-chip">${x.id}</span></td><td style="font-weight:500">${x.nombre}${tb}</td><td>${x.equipo||''} ${x.modelo||''}</td><td>${badgeHTML(x.estado)}</td><td style="color:var(--text2);font-size:11px">${x.fecha||''}</td>`;
-    tbody.appendChild(tr);
-  });
-  if (!c.length) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sin equipos aún</td></tr>';
+  const df = document.getElementById('dash-fecha');
+  if(df) df.textContent = new Date().toLocaleDateString('es-PE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  renderDashTabla();
 }
 
 // ── CLIENTES ──
 function renderClientes() { filtrarClientes(); }
 function filtrarClientes() {
-  const q  = (document.getElementById('search-box').value || '').toLowerCase();
-  const st = document.getElementById('filter-estado').value || '';
+  const q  = (document.getElementById('search-box').value||'').toLowerCase();
+  const st = document.getElementById('filter-estado').value||'';
   let c = getClientes();
   if (q)  c = c.filter(x => (x.nombre+x.id+x.equipo+x.modelo+x.telefono+x.imei+x.negocio+'').toLowerCase().includes(q));
   if (st) c = c.filter(x => x.estado === st);
   const tbody = document.getElementById('clientes-tbody');
   tbody.innerHTML = '';
   document.getElementById('count-label').textContent = c.length + ' resultado(s)';
-  if (!c.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin resultados</td></tr>';
-    return;
-  }
+  if (!c.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:24px">Sin resultados</td></tr>'; return; }
   c.forEach(x => {
     const tr = document.createElement('tr');
     tr.className = 'st-' + estadoClass(x.estado);
-    const tipoBadge = x.tipoCliente === 'pdv'
+    const tipoBadge = x.tipoCliente==='pdv'
       ? '<span style="font-size:9px;background:var(--orange-dim);color:var(--orange);border-radius:4px;padding:1px 5px;font-weight:700">PDV</span>'
       : '<span style="font-size:9px;background:var(--cyan-dim);color:var(--cyan);border-radius:4px;padding:1px 5px;font-weight:700">CLI</span>';
-    tr.innerHTML = `
-      <td><span class="id-chip">${x.id}</span></td>
-      <td>${tipoBadge}</td>
-      <td style="font-weight:500">${x.nombre}${x.negocio?'<br><span style="font-size:10px;color:var(--text3)">'+x.negocio+'</span>':''}</td>
-      <td style="font-family:var(--mono);font-size:11px">${x.telefono||'—'}</td>
-      <td>${x.equipo||'—'}</td>
-      <td style="color:var(--text2)">${x.modelo||'—'}</td>
-      <td>${badgeHTML(x.estado)}</td>
-      <td style="font-family:var(--mono);font-weight:600;color:var(--green)">S/ ${parseFloat(x.precio||0).toFixed(0)}</td>
-      <td style="color:var(--text2);font-size:11px">${x.fecha||''}</td>
-      <td><div class="row-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" title="Ver" onclick="verFicha('${x.id}')">👁</button>
-        <button class="btn btn-amber btn-sm btn-icon" title="Estado" onclick="cambiarEstado('${x.id}')">⇄</button>
-        <button class="btn btn-purple btn-sm btn-icon" title="Ticket" onclick="imprimirCliente('${x.id}')">🖨</button>
-        <button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="editarFicha('${x.id}')">✏</button>
-        <button class="btn btn-danger btn-sm btn-icon" title="Eliminar" onclick="eliminarFicha('${x.id}')">✕</button>
-      </div></td>`;
+    const negInfo = x.negocio ? '<br><span style="font-size:10px;color:var(--text3)">'+x.negocio+'</span>' : '';
+    tr.innerHTML =
+      '<td><span class="id-chip">'+x.id+'</span></td>'+
+      '<td>'+tipoBadge+'</td>'+
+      '<td style="font-weight:500">'+x.nombre+negInfo+'</td>'+
+      '<td style="font-family:var(--mono);font-size:11px">'+(x.telefono||'—')+'</td>'+
+      '<td>'+(x.equipo||'—')+'</td>'+
+      '<td style="color:var(--text2)">'+(x.modelo||'—')+'</td>'+
+      '<td>'+badgeHTML(x.estado)+'</td>'+
+      '<td style="font-family:var(--mono);font-weight:600;color:var(--green)">S/ '+parseFloat(x.precio||0).toFixed(0)+'</td>'+
+      '<td style="color:var(--text2);font-size:11px">'+(x.fecha||'')+'</td>'+
+      '<td><div class="row-actions">'+
+        '<button class="btn btn-ghost btn-sm btn-icon" title="Ver" onclick="verFicha(\''+x.id+'\')">👁</button>'+
+        '<button class="btn btn-amber btn-sm btn-icon" title="Estado" onclick="cambiarEstado(\''+x.id+'\')">⇄</button>'+
+        '<button class="btn btn-purple btn-sm btn-icon" title="Ticket" onclick="imprimirCliente(\''+x.id+'\')">🖨</button>'+
+        '<button class="btn btn-ghost btn-sm btn-icon" title="Editar" onclick="editarFicha(\''+x.id+'\')">✏</button>'+
+        '<button class="btn btn-danger btn-sm btn-icon" title="Eliminar" onclick="eliminarFicha(\''+x.id+'\')">✕</button>'+
+      '</div></td>';
     tbody.appendChild(tr);
   });
 }
-function estadoClass(e) {
-  return {Pendiente:'pendiente','En proceso':'proceso',Listo:'listo',Entregado:'entregado','Garantía':'garantia',Cancelado:'cancelado'}[e] || 'pendiente';
+
+// ── PDV ──
+function fillPdvDatalist() {
+  const dl = document.getElementById('pdv-datalist'); if (!dl) return;
+  dl.innerHTML = '';
+  getPDVs().forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.nombre;
+    dl.appendChild(opt);
+  });
 }
-function badgeHTML(e) { return `<span class="badge ${estadoClass(e)}">${e}</span>`; }
+function onPdvInput(val) {
+  const pdvs = getPDVs();
+  const match = pdvs.find(p => p.nombre.toLowerCase() === val.toLowerCase());
+  const info = document.getElementById('pdv-sel-info');
+  if (!info) return;
+  if (match) {
+    info.style.display = 'block';
+    const trabajos = getClientes().filter(c => c.pdvId === match.id).length;
+    info.innerHTML = '<strong style="color:var(--orange)">'+match.nombre+'</strong> · '+match.id+' · '+trabajos+' trabajo(s)';
+    info.dataset.pdvId = match.id;
+  } else if (val.trim()) {
+    info.style.display = 'block';
+    info.innerHTML = '<span style="color:var(--cyan)">✚ Nuevo PDV: <strong>"'+val.trim()+'"</strong></span>';
+    info.dataset.pdvId = '';
+  } else {
+    info.style.display = 'none';
+    info.dataset.pdvId = '';
+  }
+}
+function resolverPDV(nombre) {
+  if (!nombre) return null;
+  const pdvs = getPDVs();
+  const match = pdvs.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+  if (match) return match;
+  const nuevo = {id: nextPdvId(), nombre: nombre.trim(), creado: today()};
+  pdvs.push(nuevo);
+  savePDVs(pdvs);
+  updateBadges();
+  toast('Nuevo PDV: ' + nuevo.nombre, 'ok');
+  return nuevo;
+}
 
 // ── TIPO CLIENTE ──
 function setTipoCliente(tipo) {
@@ -1158,13 +1404,14 @@ function setTipoCliente(tipo) {
   const btnPdv = document.getElementById('tipo-btn-pdv');
   const pdvF   = document.getElementById('pdv-fields');
   if (tipo === 'cliente') {
-    btnCli.className = 'tipo-btn active-cli';
-    btnPdv.className = 'tipo-btn';
-    pdvF.style.display = 'none';
+    if(btnCli) btnCli.className = 'tipo-btn active-cli';
+    if(btnPdv) btnPdv.className = 'tipo-btn';
+    if(pdvF)   pdvF.style.display = 'none';
   } else {
-    btnPdv.className = 'tipo-btn active-pdv';
-    btnCli.className = 'tipo-btn';
-    pdvF.style.display = 'block';
+    if(btnPdv) btnPdv.className = 'tipo-btn active-pdv';
+    if(btnCli) btnCli.className = 'tipo-btn';
+    if(pdvF)   pdvF.style.display = 'block';
+    fillPdvDatalist();
   }
 }
 
@@ -1173,23 +1420,35 @@ function openModal(id) {
   if (id === 'nueva' && !editingId) {
     document.getElementById('modal-title').textContent = 'Nueva Ficha';
     document.getElementById('btn-guardar-modal').textContent = '💾 Guardar';
-    ['m-nombre','m-telefono','m-equipo','m-modelo','m-problema','m-precio','m-negocio','m-ruc'].forEach(f => {
-      const el = document.getElementById(f); if (el) el.value = '';
+    ['m-nombre','m-telefono','m-equipo','m-modelo','m-problema','m-precio','m-pdv-input'].forEach(f => {
+      const el = document.getElementById(f); if (el) { el.value = ''; if(el.style) el.style.borderColor=''; }
     });
     document.getElementById('m-estado').value = 'Pendiente';
     setTipoCliente('cliente');
+    const si = document.getElementById('pdv-sel-info');
+    if(si) { si.style.display='none'; si.dataset.pdvId=''; }
   }
-  document.getElementById('modal-' + id).classList.add('open');
+  const modal = document.getElementById('modal-' + id);
+  if(modal) modal.classList.add('open');
 }
-function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
+function closeModal(id) {
+  const modal = document.getElementById('modal-' + id);
+  if(modal) modal.classList.remove('open');
+  if(id === 'nueva') editingId = null;
+}
 
 // ── GUARDAR FICHA ──
 function guardarFicha() {
   const nombre = document.getElementById('m-nombre').value.trim();
   if (!nombre) { toast('El nombre es obligatorio', 'err'); return; }
-  const tipo    = tipoClienteActual;
-  const negocio = (document.getElementById('m-negocio') || {value:''}).value.trim();
-  const ruc     = (document.getElementById('m-ruc') || {value:''}).value.trim();
+  const tipo = tipoClienteActual;
+  let negocio = '', pdvId = '';
+  if (tipo === 'pdv') {
+    const pdvNombre = (document.getElementById('m-pdv-input')||{value:''}).value.trim();
+    if (!pdvNombre) { toast('Selecciona o escribe el nombre del PDV', 'err'); return; }
+    const pdvObj = resolverPDV(pdvNombre);
+    if (pdvObj) { negocio = pdvObj.nombre; pdvId = pdvObj.id; }
+  }
   const c = getClientes();
   if (editingId) {
     const idx = c.findIndex(x => x.id === editingId);
@@ -1201,7 +1460,7 @@ function guardarFicha() {
         problema: document.getElementById('m-problema').value.trim(),
         precio:   document.getElementById('m-precio').value,
         estado:   document.getElementById('m-estado').value,
-        tipoCliente: tipo, negocio, ruc
+        tipoCliente: tipo, negocio, pdvId
       };
       saveClientes(c);
       toast('Ficha actualizada: ' + c[idx].id, 'ok');
@@ -1215,129 +1474,139 @@ function guardarFicha() {
       problema: document.getElementById('m-problema').value.trim(),
       precio:   document.getElementById('m-precio').value,
       estado:   document.getElementById('m-estado').value,
-      tipoCliente: tipo, negocio, ruc,
-      fecha:today(), hora:hora(), imei:'', color:'', accesorios:'', pin:'', tecnico:'', servicio:'', adelanto:'0', fisico:'Bueno'
+      tipoCliente: tipo, negocio, pdvId,
+      fecha:today(), hora:hora(), imei:'', color:'', accesorios:'', pin:'',
+      tecnico:'', servicio:'', adelanto:'0', fisico:'Bueno'
     });
     saveClientes(c);
     toast('Registrado: ' + id, 'ok');
   }
   closeModal('nueva');
-  editingId = null;
   renderClientes();
   refreshDash();
 }
 
 function editarFicha(id) {
-  const c = getClientes().find(x => x.id === id);
-  if (!c) return;
+  const c = getClientes().find(x => x.id === id); if (!c) return;
   editingId = id;
   document.getElementById('modal-title').textContent = 'Editar: ' + id;
   document.getElementById('btn-guardar-modal').textContent = '💾 Actualizar';
-  document.getElementById('m-nombre').value   = c.nombre || '';
-  document.getElementById('m-telefono').value = c.telefono || '';
-  document.getElementById('m-equipo').value   = c.equipo || '';
-  document.getElementById('m-modelo').value   = c.modelo || '';
-  document.getElementById('m-problema').value = c.problema || '';
-  document.getElementById('m-precio').value   = c.precio || '';
-  document.getElementById('m-estado').value   = c.estado || 'Pendiente';
-  const neg = document.getElementById('m-negocio'); if (neg) neg.value = c.negocio || '';
-  const ruc = document.getElementById('m-ruc');     if (ruc) ruc.value = c.ruc || '';
-  setTipoCliente(c.tipoCliente || 'cliente');
+  document.getElementById('m-nombre').value   = c.nombre||'';
+  document.getElementById('m-telefono').value = c.telefono||'';
+  document.getElementById('m-equipo').value   = c.equipo||'';
+  document.getElementById('m-modelo').value   = c.modelo||'';
+  document.getElementById('m-problema').value = c.problema||'';
+  document.getElementById('m-precio').value   = c.precio||'';
+  document.getElementById('m-estado').value   = c.estado||'Pendiente';
+  setTipoCliente(c.tipoCliente||'cliente');
+  if (c.tipoCliente === 'pdv') {
+    const pi = document.getElementById('m-pdv-input'); if(pi) pi.value = c.negocio||'';
+    const info = document.getElementById('pdv-sel-info');
+    if (info && c.negocio) {
+      const trabajos = getClientes().filter(x => x.pdvId === c.pdvId).length;
+      info.style.display = 'block';
+      info.innerHTML = '<strong style="color:var(--orange)">'+c.negocio+'</strong> · '+(c.pdvId||'')+' · '+trabajos+' trabajo(s)';
+      info.dataset.pdvId = c.pdvId||'';
+    }
+  }
   document.getElementById('modal-nueva').classList.add('open');
 }
 
 function verFicha(id) {
-  const c = getClientes().find(x => x.id === id);
-  if (!c) return;
+  const c = getClientes().find(x => x.id === id); if (!c) return;
   verClienteId = id;
   document.getElementById('ver-titulo').textContent = c.nombre + ' · ' + c.id;
-  const tipoBadge = c.tipoCliente === 'pdv'
+  const tipoBadge = c.tipoCliente==='pdv'
     ? '<span style="font-size:10px;background:var(--orange-dim);color:var(--orange);border-radius:4px;padding:1px 6px;font-weight:700;margin-left:6px">PDV</span>'
     : '';
-  document.getElementById('ver-body').innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <div style="width:44px;height:44px;border-radius:50%;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--cyan)">${c.nombre[0]}</div>
-      <div><div style="font-size:15px;font-weight:700">${c.nombre}${tipoBadge}</div>
-      <div style="font-size:11px;color:var(--text2)">${c.id} · ${badgeHTML(c.estado)}</div></div>
-    </div>
-    ${c.negocio ? `<div style="margin-bottom:10px;padding:8px 10px;background:var(--orange-dim);border-radius:7px;border-left:3px solid var(--orange);font-size:12px"><strong style="color:var(--orange)">Punto de venta:</strong> ${c.negocio}${c.ruc?' · RUC: '+c.ruc:''}</div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
-      ${fila('📞 Teléfono', c.telefono||'—')}
-      ${fila('📱 Equipo', (c.equipo||'') + ' ' + (c.modelo||''))}
-      ${fila('🔢 IMEI', c.imei ? `<span style="font-family:var(--mono);font-size:10px">${c.imei}</span>` : '—')}
-      ${fila('🎨 Color', c.color||'—')}
-      ${fila('🔑 PIN', c.pin||'No registrado')}
-      ${fila('💰 Precio', `<span style="color:var(--green);font-weight:700">S/ ${parseFloat(c.precio||0).toFixed(2)}</span>`)}
-      ${fila('💵 Adelanto', 'S/ ' + parseFloat(c.adelanto||0).toFixed(2))}
-      ${fila('🔧 Servicio', c.servicio||'—')}
-      ${fila('👤 Técnico', c.tecnico||'—')}
-      ${fila('📅 Fecha', c.fecha||'—')}
-    </div>
-    ${c.problema ? `<div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:7px;border-left:3px solid var(--cyan)"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.8px">Problema</div><div style="font-size:12px">${c.problema}</div></div>` : ''}`;
+  const pdvRow = (c.tipoCliente==='pdv' && c.negocio)
+    ? '<div style="margin-bottom:10px;padding:8px 10px;background:var(--orange-dim);border-radius:7px;border-left:3px solid var(--orange);font-size:12px;display:flex;align-items:center;justify-content:space-between"><div><strong style=\'color:var(--orange)\'>🏪 '+c.negocio+'</strong> <span style=\'font-size:10px;color:var(--text3)\'>'+(c.pdvId||'')+'</span></div><button onclick=\'closeModal(&quot;ver&quot;);verHistorialPDV(&quot;'+c.pdvId+'&quot;)\' class=\'btn btn-sm\' style=\'background:var(--orange-dim);color:var(--orange);border-color:var(--orange);font-size:10px\'>📋 Historial</button></div>'
+    : '';
+  function fila(l,v) { return '<div style="padding:6px 0;border-bottom:1px solid var(--border);color:var(--text2)">'+l+'</div><div style="padding:6px 0;border-bottom:1px solid var(--border)">'+v+'</div>'; }
+  document.getElementById('ver-body').innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'+
+      '<div style="width:44px;height:44px;border-radius:50%;background:var(--cyan-dim);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--cyan)">'+c.nombre[0]+'</div>'+
+      '<div><div style="font-size:15px;font-weight:700">'+c.nombre+tipoBadge+'</div>'+
+      '<div style="font-size:11px;color:var(--text2)">'+c.id+' · '+badgeHTML(c.estado)+'</div></div>'+
+    '</div>'+
+    pdvRow+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">'+
+      fila('📞 Teléfono', c.telefono||'—')+
+      fila('📱 Equipo', (c.equipo||'')+' '+(c.modelo||''))+
+      fila('🔢 IMEI', c.imei ? '<span style="font-family:var(--mono);font-size:10px">'+c.imei+'</span>' : '—')+
+      fila('🎨 Color', c.color||'—')+
+      fila('🔑 PIN', c.pin||'No registrado')+
+      fila('💰 Precio', '<span style="color:var(--green);font-weight:700">S/ '+parseFloat(c.precio||0).toFixed(2)+'</span>')+
+      fila('💵 Adelanto', 'S/ '+parseFloat(c.adelanto||0).toFixed(2))+
+      fila('🔧 Servicio', c.servicio||'—')+
+      fila('👤 Técnico', c.tecnico||'—')+
+      fila('📅 Fecha', c.fecha||'—')+
+    '</div>'+
+    (c.problema ? '<div style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:7px;border-left:3px solid var(--cyan)"><div style="font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:.8px">Problema</div><div style="font-size:12px">'+c.problema+'</div></div>' : '');
   openModal('ver');
 }
-function fila(l, v) { return `<div style="padding:6px 0;border-bottom:1px solid var(--border);color:var(--text2)">${l}</div><div style="padding:6px 0;border-bottom:1px solid var(--border)">${v}</div>`; }
-function editarDesdeVer()  { closeModal('ver'); editarFicha(verClienteId); }
-function imprimirDesdeVer(){ closeModal('ver'); imprimirCliente(verClienteId); }
+function editarDesdeVer()   { closeModal('ver'); editarFicha(verClienteId); }
+function imprimirDesdeVer() { closeModal('ver'); imprimirCliente(verClienteId); }
 
+// ── CAMBIAR ESTADO ──
 function cambiarEstado(id) {
   const estados = ['Pendiente','En proceso','Listo','Entregado','Garantía','Cancelado'];
   const c = getClientes(); const idx = c.findIndex(x => x.id === id); if (idx < 0) return;
-  const cur = c[idx];
-  const next = estados[(estados.indexOf(cur.estado) + 1) % estados.length];
-  // Si el siguiente estado es Entregado, mostrar modal de cierre con pago
-  if (next === 'Entregado') {
-    abrirCierreEntrega(id);
-    return;
-  }
-  // Si es Garantía abrir modal de garantía
-  if (next === 'Garantía') {
-    abrirGarantia(id);
-    return;
-  }
-  if (!confirm('Cambiar estado a "' + next + '"?')) return;
+  const next = estados[(estados.indexOf(c[idx].estado)+1) % estados.length];
+  if (next === 'Entregado') { abrirCierreEntrega(id); return; }
+  if (next === 'Garantía')  { abrirGarantia(id); return; }
+  if (!confirm('Cambiar estado a "'+next+'"?')) return;
   c[idx].estado = next; saveClientes(c);
-  toast(cur.nombre + ' → ' + next, 'info');
+  toast(c[idx].nombre + ' → ' + next, 'info');
   renderClientes(); refreshDash();
 }
 
-// ── CIERRE DE ENTREGA (modal con pago) ──
-let _cierreId = null;
+function eliminarFicha(id) {
+  const c = getClientes(); const x = c.find(q => q.id === id); if (!x) return;
+  if (!confirm('¿Eliminar ficha de '+x.nombre+'?')) return;
+  const nuevo = c.filter(q => q.id !== id);
+  if (DB_MODE === 'cloud') {
+    _cache = nuevo; updateBadges();
+    deleteClienteNube(id).then(()=>toast('Eliminado: '+id,'info')).catch(e=>toast('Error: '+e.message,'err'));
+  } else {
+    saveClientes(nuevo);
+    toast('Eliminado: '+id,'info');
+  }
+  renderClientes(); refreshDash();
+}
+
+// ── CIERRE ENTREGA ──
 function abrirCierreEntrega(id) {
   _cierreId = id;
   const c = getClientes().find(x => x.id === id); if (!c) return;
-  const precio  = parseFloat(c.precio||0);
-  const adelanto = parseFloat(c.adelanto||0);
-  const saldo   = precio - adelanto;
-  const el = document.getElementById('modal-cierre');
-  el.querySelector('#cierre-nombre').textContent  = c.nombre;
-  el.querySelector('#cierre-equipo').textContent  = (c.equipo||'') + ' ' + (c.modelo||'');
-  el.querySelector('#cierre-precio').textContent  = 'S/ ' + precio.toFixed(2);
-  el.querySelector('#cierre-adelanto').textContent= 'S/ ' + adelanto.toFixed(2);
-  el.querySelector('#cierre-saldo').textContent   = 'S/ ' + saldo.toFixed(2);
-  el.querySelector('#cierre-monto').value         = saldo > 0 ? saldo.toFixed(2) : '';
-  el.querySelector('#cierre-metodo').value        = 'efectivo';
-  el.querySelector('#cierre-obs').value           = '';
+  const precio = parseFloat(c.precio||0), adelanto = parseFloat(c.adelanto||0), saldo = precio - adelanto;
+  document.getElementById('cierre-nombre').textContent   = c.nombre;
+  document.getElementById('cierre-equipo').textContent   = (c.equipo||'')+' '+(c.modelo||'');
+  document.getElementById('cierre-precio').textContent   = 'S/ '+precio.toFixed(2);
+  document.getElementById('cierre-adelanto').textContent = 'S/ '+adelanto.toFixed(2);
+  document.getElementById('cierre-saldo').textContent    = 'S/ '+saldo.toFixed(2);
+  document.getElementById('cierre-monto').value          = saldo > 0 ? saldo.toFixed(2) : '';
+  document.getElementById('cierre-metodo').value         = 'efectivo';
+  document.getElementById('cierre-obs').value            = '';
   openModal('cierre');
 }
 function confirmarCierre() {
   const id = _cierreId; if (!id) return;
   const c = getClientes(); const idx = c.findIndex(x => x.id === id); if (idx < 0) return;
-  const monto   = parseFloat(document.getElementById('cierre-monto').value || 0);
-  const metodo  = document.getElementById('cierre-metodo').value;
-  const obs     = document.getElementById('cierre-obs').value.trim();
-  const adelanto= parseFloat(c[idx].adelanto||0);
-  const totalCobrado = adelanto + monto;
-  c[idx].estado        = 'Entregado';
-  c[idx].pagoCierre    = monto.toFixed(2);
-  c[idx].metodoPago    = metodo;
-  c[idx].totalCobrado  = totalCobrado.toFixed(2);
-  c[idx].fechaEntrega  = today();
-  c[idx].horaEntrega   = hora();
-  c[idx].obsCierre     = obs;
+  const monto    = parseFloat(document.getElementById('cierre-monto').value||0);
+  const metodo   = document.getElementById('cierre-metodo').value;
+  const obs      = document.getElementById('cierre-obs').value.trim();
+  const adelanto = parseFloat(c[idx].adelanto||0);
+  c[idx].estado       = 'Entregado';
+  c[idx].pagoCierre   = monto.toFixed(2);
+  c[idx].metodoPago   = metodo;
+  c[idx].totalCobrado = (adelanto + monto).toFixed(2);
+  c[idx].fechaEntrega = today();
+  c[idx].horaEntrega  = hora();
+  c[idx].obsCierre    = obs;
   saveClientes(c);
   closeModal('cierre');
-  toast(c[idx].nombre + ' → Entregado (' + metodo.toUpperCase() + ' S/ ' + monto.toFixed(2) + ')', 'ok');
+  toast(c[idx].nombre+' → Entregado ('+metodo.toUpperCase()+' S/ '+monto.toFixed(2)+')', 'ok');
   renderClientes(); refreshDash();
 }
 
@@ -1345,9 +1614,9 @@ function confirmarCierre() {
 function abrirGarantia(id) {
   _cierreId = id;
   const c = getClientes().find(x => x.id === id); if (!c) return;
-  document.getElementById('gtia-nombre').textContent  = c.nombre;
-  document.getElementById('gtia-equipo').textContent  = (c.equipo||'') + ' ' + (c.modelo||'');
-  document.getElementById('gtia-precio').textContent  = 'S/ ' + parseFloat(c.precio||0).toFixed(2);
+  document.getElementById('gtia-nombre').textContent = c.nombre;
+  document.getElementById('gtia-equipo').textContent = (c.equipo||'')+' '+(c.modelo||'');
+  document.getElementById('gtia-precio').textContent = 'S/ '+parseFloat(c.precio||0).toFixed(2);
   document.getElementById('gtia-obs').value = '';
   openModal('garantia');
 }
@@ -1355,577 +1624,653 @@ function confirmarGarantia() {
   const id = _cierreId; if (!id) return;
   const c = getClientes(); const idx = c.findIndex(x => x.id === id); if (idx < 0) return;
   const obs = document.getElementById('gtia-obs').value.trim();
-  c[idx].estado        = 'Garantía';
-  c[idx].pagoCierre    = '0.00';
-  c[idx].totalCobrado  = parseFloat(c[idx].adelanto||0).toFixed(2); // solo lo que ya pagó
-  c[idx].metodoPago    = 'garantia';
-  c[idx].fechaEntrega  = today();
-  c[idx].horaEntrega   = hora();
-  c[idx].obsCierre     = obs || 'Devuelto por garantía';
+  c[idx].estado       = 'Garantía';
+  c[idx].pagoCierre   = '0.00';
+  c[idx].totalCobrado = parseFloat(c[idx].adelanto||0).toFixed(2);
+  c[idx].metodoPago   = 'garantia';
+  c[idx].fechaEntrega = today();
+  c[idx].horaEntrega  = hora();
+  c[idx].obsCierre    = obs||'Devuelto por garantía';
   saveClientes(c);
   closeModal('garantia');
-  toast(c[idx].nombre + ' → Garantía (sin cobro adicional)', 'info');
-  renderClientes(); refreshDash();
-}
-function eliminarFicha(id) {
-  const c = getClientes(); const x = c.find(q => q.id === id); if (!x) return;
-  if (!confirm('¿Eliminar ficha de ' + x.nombre + '?')) return;
-  const nuevo = c.filter(q => q.id !== id);
-  if (DB_MODE === 'cloud') {
-    _cache = nuevo;
-    updateBadges();
-    deleteClienteNube(id)
-      .then(() => toast('Eliminado de Drive: ' + id, 'info'))
-      .catch(e => toast('Error eliminando en nube: ' + e.message, 'err'));
-  } else {
-    saveClientes(nuevo);
-    toast('Eliminado: ' + id, 'info');
-  }
+  toast(c[idx].nombre+' → Garantía (sin cobro adicional)', 'info');
   renderClientes(); refreshDash();
 }
 
 // ── INTERNAR EQUIPO ──
 function validarIMEI(el) {
-  el.value = el.value.replace(/\D/g, '');
-  const ok = el.value.length === 15;
-  el.style.borderColor = el.value.length === 0 ? 'var(--border)' : ok ? 'var(--green)' : 'var(--red)';
+  el.value = el.value.replace(/\D/g,'');
+  el.style.borderColor = el.value.length===0?'var(--border)':el.value.length===15?'var(--green)':'var(--red)';
 }
 function guardarIngreso() {
   const nombre = document.getElementById('in-nombre').value.trim();
-  if (!nombre) { toast('El nombre es obligatorio', 'err'); return; }
+  if (!nombre) { toast('El nombre es obligatorio','err'); return; }
   const equipo = document.getElementById('in-equipo').value;
-  if (!equipo) { toast('Selecciona la marca', 'err'); return; }
+  if (!equipo) { toast('Selecciona la marca','err'); return; }
   const imei = document.getElementById('in-imei').value.trim();
-  if (imei && imei.length !== 15) { toast('IMEI debe tener 15 dígitos', 'err'); return; }
+  if (imei && imei.length !== 15) { toast('IMEI debe tener 15 dígitos','err'); return; }
   const id = nextId();
   const nuevo = {
-    id, nombre, telefono: document.getElementById('in-telefono').value.trim(),
-    dni: document.getElementById('in-dni').value.trim(),
-    equipo, modelo: document.getElementById('in-modelo').value.trim(),
-    imei, color:'', fisico: document.getElementById('in-fisico').value,
-    accesorios: document.getElementById('in-accesorios').value.trim(),
-    pin: document.getElementById('in-pin').value.trim(),
-    problema: document.getElementById('in-problema').value.trim(),
-    servicio: document.getElementById('in-servicio').value,
-    precio: document.getElementById('in-precio').value || '0',
-    adelanto: document.getElementById('in-adelanto').value || '0',
-    tecnico: document.getElementById('in-tecnico').value.trim(),
-    entrega: document.getElementById('in-entrega').value,
-    estado: document.getElementById('in-estado').value,
-    tipoCliente:'cliente', negocio:'', ruc:'',
+    id, nombre, telefono:document.getElementById('in-telefono').value.trim(),
+    dni:document.getElementById('in-dni').value.trim(),
+    equipo, modelo:document.getElementById('in-modelo').value.trim(),
+    imei, color:'', fisico:document.getElementById('in-fisico').value,
+    accesorios:document.getElementById('in-accesorios').value.trim(),
+    pin:document.getElementById('in-pin').value.trim(),
+    problema:document.getElementById('in-problema').value.trim(),
+    servicio:document.getElementById('in-servicio').value,
+    precio:document.getElementById('in-precio').value||'0',
+    adelanto:document.getElementById('in-adelanto').value||'0',
+    tecnico:document.getElementById('in-tecnico').value.trim(),
+    entrega:document.getElementById('in-entrega').value,
+    estado:document.getElementById('in-estado').value,
+    tipoCliente:'cliente', negocio:'', pdvId:'',
     fecha:today(), hora:hora()
   };
   const c = getClientes(); c.unshift(nuevo); saveClientes(c);
-  toast('Equipo internado: ' + id, 'ok');
+  toast('Equipo internado: '+id, 'ok');
   limpiarIngreso(); refreshDash();
 }
 function limpiarIngreso() {
-  ['in-nombre','in-telefono','in-dni','in-modelo','in-imei','in-accesorios','in-pin','in-problema','in-tecnico','in-precio','in-adelanto'].forEach(f => {
-    const el = document.getElementById(f); if (el) { el.value = ''; el.style.borderColor = ''; }
+  ['in-nombre','in-telefono','in-dni','in-modelo','in-imei','in-accesorios','in-pin','in-problema','in-tecnico','in-precio','in-adelanto'].forEach(f=>{
+    const el=document.getElementById(f); if(el){el.value='';el.style.borderColor='';}
   });
-  document.getElementById('in-equipo').value  = '';
-  document.getElementById('in-fisico').value  = 'Bueno';
+  document.getElementById('in-equipo').value   = '';
+  document.getElementById('in-fisico').value   = 'Bueno';
   document.getElementById('in-servicio').value = 'Diagnóstico';
-  document.getElementById('in-estado').value  = 'Pendiente';
+  document.getElementById('in-estado').value   = 'Pendiente';
 }
 function previsualizarTicket() {
   const tmp = {
-    id:'PRV-000', nombre: document.getElementById('in-nombre').value||'—',
-    telefono: document.getElementById('in-telefono').value,
-    equipo: document.getElementById('in-equipo').value,
-    modelo: document.getElementById('in-modelo').value,
-    imei: document.getElementById('in-imei').value,
-    problema: document.getElementById('in-problema').value,
-    precio: document.getElementById('in-precio').value||'0',
-    estado: document.getElementById('in-estado').value||'Pendiente',
-    servicio: document.getElementById('in-servicio').value,
-    tecnico: document.getElementById('in-tecnico').value,
-    adelanto: document.getElementById('in-adelanto').value||'0',
-    accesorios: document.getElementById('in-accesorios').value,
+    id:'PRV-000', nombre:document.getElementById('in-nombre').value||'—',
+    telefono:document.getElementById('in-telefono').value,
+    equipo:document.getElementById('in-equipo').value,
+    modelo:document.getElementById('in-modelo').value,
+    imei:document.getElementById('in-imei').value,
+    problema:document.getElementById('in-problema').value,
+    precio:document.getElementById('in-precio').value||'0',
+    estado:document.getElementById('in-estado').value||'Pendiente',
+    servicio:document.getElementById('in-servicio').value,
+    tecnico:document.getElementById('in-tecnico').value,
+    adelanto:document.getElementById('in-adelanto').value||'0',
+    accesorios:document.getElementById('in-accesorios').value,
     fecha:today(), hora:hora()
   };
-  document.getElementById('modal-ticket-preview').textContent = generarTextoTicket(tmp, 'ingreso');
+  document.getElementById('modal-ticket-preview').textContent = generarTextoTicket(tmp,'ingreso');
   openModal('ticket');
 }
 
 // ── REPORTES ──
 function filtrarPorPeriodo(c, periodo) {
-  const hoy = today();
+  const hoy = diaOperativo();
   if (periodo === 'diario') return c.filter(x => x.fecha === hoy);
   if (periodo === 'semanal') {
-    const now = new Date(); const lunes = new Date(now);
-    lunes.setDate(now.getDate() - ((now.getDay() + 6) % 7)); lunes.setHours(0,0,0,0);
-    return c.filter(x => { try { return new Date(x.fecha) >= lunes; } catch { return false; } });
+    const now=new Date(), lunes=new Date(now);
+    lunes.setDate(now.getDate()-((now.getDay()+6)%7)); lunes.setHours(0,0,0,0);
+    return c.filter(x => { try { return new Date(x.fecha)>=lunes; } catch{return false;} });
   }
   if (periodo === 'mensual') {
-    const now = new Date(); const mes = now.getMonth(); const yr = now.getFullYear();
-    return c.filter(x => { try { const d = new Date(x.fecha); return d.getMonth()===mes && d.getFullYear()===yr; } catch { return false; } });
+    const now=new Date(), mes=now.getMonth(), yr=now.getFullYear();
+    return c.filter(x => { try { const d=new Date(x.fecha); return d.getMonth()===mes&&d.getFullYear()===yr; } catch{return false;} });
   }
   return c;
 }
-
 function cambiarRepTab(tab) {
   repTabActivo = tab;
-  document.querySelectorAll('.rep-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.rep-content').forEach(t => t.classList.remove('active'));
-  document.getElementById('rtab-' + tab).classList.add('active');
-  document.getElementById('rep-' + tab).classList.add('active');
+  document.querySelectorAll('.rep-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.rep-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('rtab-'+tab).classList.add('active');
+  document.getElementById('rep-'+tab).classList.add('active');
 }
-
 function buildRepContent(containerId, c, titulo) {
   const el = document.getElementById(containerId);
-  const estados = {Pendiente:0,'En proceso':0,Listo:0,Entregado:0,Garantía:0,Cancelado:0};
-  const marcas = {}; let total = 0, cobrado = 0;
+  const estados = {Pendiente:0,'En proceso':0,Listo:0,Entregado:0,'Garantía':0,Cancelado:0};
+  const marcas = {}; let total=0, cobrado=0;
   c.forEach(x => {
-    if (estados[x.estado] !== undefined) estados[x.estado]++;
-    const m = x.equipo || 'Otro'; marcas[m] = (marcas[m]||0) + 1;
+    if (estados[x.estado]!==undefined) estados[x.estado]++;
+    const m=x.equipo||'Otro'; marcas[m]=(marcas[m]||0)+1;
     total   += parseFloat(x.precio||0);
-    cobrado += getCobrado(x); // usa totalCobrado si existe
+    cobrado += getCobrado(x);
   });
-  const colors = {
-    Pendiente:'var(--amber)','En proceso':'#00b4ff',Listo:'var(--green)',
-    Entregado:'var(--text2)',Garantía:'var(--purple)',Cancelado:'var(--red)'
-  };
-  const barsEst = Object.entries(estados).map(([k,v]) => {
-    const pct = c.length ? Math.round(v/c.length*100) : 0;
-    return `<div class="report-bar-wrap"><div class="report-bar-label"><span>${k}</span><span style="font-family:var(--mono);font-weight:700">${v} (${pct}%)</span></div><div class="report-bar"><div class="report-bar-fill" style="width:${pct}%;background:${colors[k]||'var(--text3)'}"></div></div></div>`;
+  const colors = {Pendiente:'var(--amber)','En proceso':'#00b4ff',Listo:'var(--green)',Entregado:'var(--text2)','Garantía':'var(--purple)',Cancelado:'var(--red)'};
+  const barsEst = Object.entries(estados).map(([k,v])=>{
+    const pct=c.length?Math.round(v/c.length*100):0;
+    return '<div class="report-bar-wrap"><div class="report-bar-label"><span>'+k+'</span><span style="font-family:var(--mono);font-weight:700">'+v+' ('+pct+'%)</span></div><div class="report-bar"><div class="report-bar-fill" style="width:'+pct+'%;background:'+(colors[k]||'var(--text3)')+'"></div></div></div>';
   }).join('');
-  const sortedM = Object.entries(marcas).sort((a,b)=>b[1]-a[1]); const maxM = sortedM[0] ? sortedM[0][1] : 1;
-  const barsM = sortedM.map(([k,v]) => `<div class="report-bar-wrap"><div class="report-bar-label"><span>${k}</span><span style="font-family:var(--mono);font-weight:700">${v}</span></div><div class="report-bar"><div class="report-bar-fill" style="width:${Math.round(v/maxM*100)}%;background:var(--purple)"></div></div></div>`).join('');
-  const rows = c.map(x => {
-    const cob = getCobrado(x);
-    const tipob = x.tipoCliente==='pdv'
-      ? '<span style="font-size:8px;background:var(--orange-dim);color:var(--orange);border-radius:3px;padding:1px 3px;font-weight:700;margin-left:3px">PDV</span>'
-      : '';
-    return `<tr class="st-${estadoClass(x.estado)}" style="cursor:pointer" onclick="verFicha('${x.id}')">
-      <td><span class="id-chip">${x.id}</span></td>
-      <td>${x.nombre}${tipob}</td>
-      <td>${x.equipo||''}</td><td>${x.modelo||''}</td>
-      <td>${badgeHTML(x.estado)}</td>
-      <td style="font-family:var(--mono);color:var(--purple)">S/ ${parseFloat(x.precio||0).toFixed(2)}</td>
-      <td style="font-family:var(--mono);color:var(--green)">S/ ${cob.toFixed(2)}</td>
-      <td style="color:var(--text2);font-size:11px">${x.fecha||''}</td>
-    </tr>`;
-  }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin datos para este período</td></tr>';
-  el.innerHTML = `
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;flex-shrink:0">
-    <div class="stat-card cyan" style="cursor:default"><div class="stat-label">Equipos</div><div class="stat-value">${c.length}</div><div class="stat-sub">${titulo}</div></div>
-    <div class="stat-card amber" style="cursor:default"><div class="stat-label">Facturación</div><div class="stat-value" style="font-size:16px">S/ ${total.toFixed(0)}</div></div>
-    <div class="stat-card green" style="cursor:default"><div class="stat-label">Cobrado</div><div class="stat-value" style="font-size:16px">S/ ${cobrado.toFixed(0)}</div></div>
-    <div class="stat-card purple" style="cursor:default"><div class="stat-label">Por cobrar</div><div class="stat-value" style="font-size:16px">S/ ${(total-cobrado).toFixed(0)}</div></div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;flex-shrink:0">
-    <div class="section-wrap" style="margin-bottom:0"><div class="section-wrap-title">Por estado</div>${barsEst}</div>
-    <div class="section-wrap" style="margin-bottom:0"><div class="section-wrap-title">Por marca</div>${barsM}</div>
-  </div>
-  <div class="table-wrap" style="flex:1;min-height:0">
-    <div class="table-top" style="padding:8px 12px;flex-shrink:0"><span style="font-size:11px;font-weight:700">Listado — ${titulo}</span><span style="font-size:11px;color:var(--text2);margin-left:auto">${c.length} registros</span></div>
-    <div class="table-scroll"><table><thead><tr><th>ID</th><th>Cliente</th><th>Equipo</th><th>Modelo</th><th>Estado</th><th>Precio</th><th>Cobrado</th><th>Fecha</th></tr></thead><tbody>${rows}</tbody></table></div>
-  </div>`;
+  const sortedM=Object.entries(marcas).sort((a,b)=>b[1]-a[1]), maxM=sortedM[0]?sortedM[0][1]:1;
+  const barsM=sortedM.map(([k,v])=>'<div class="report-bar-wrap"><div class="report-bar-label"><span>'+k+'</span><span style="font-family:var(--mono);font-weight:700">'+v+'</span></div><div class="report-bar"><div class="report-bar-fill" style="width:'+Math.round(v/maxM*100)+'%;background:var(--purple)"></div></div></div>').join('');
+  const rows = c.map(x=>{
+    const cob=getCobrado(x);
+    const tipob=x.tipoCliente==='pdv'?'<span style="font-size:8px;background:var(--orange-dim);color:var(--orange);border-radius:3px;padding:1px 3px;font-weight:700;margin-left:3px">PDV</span>':'';
+    return '<tr class="st-'+estadoClass(x.estado)+'" style="cursor:pointer" onclick="verFicha(\''+x.id+'\')"><td><span class="id-chip">'+x.id+'</span></td><td>'+x.nombre+tipob+'</td><td>'+(x.equipo||'')+'</td><td>'+(x.modelo||'')+'</td><td>'+badgeHTML(x.estado)+'</td><td style="font-family:var(--mono);color:var(--purple)">S/ '+parseFloat(x.precio||0).toFixed(2)+'</td><td style="font-family:var(--mono);color:var(--green)">S/ '+cob.toFixed(2)+'</td><td style="color:var(--text2);font-size:11px">'+(x.fecha||'')+'</td></tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin datos para este período</td></tr>';
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;flex-shrink:0">'+
+      '<div class="stat-card cyan" style="cursor:default"><div class="stat-label">Equipos</div><div class="stat-value">'+c.length+'</div><div class="stat-sub">'+titulo+'</div></div>'+
+      '<div class="stat-card amber" style="cursor:default"><div class="stat-label">Facturación</div><div class="stat-value" style="font-size:16px">S/ '+total.toFixed(0)+'</div></div>'+
+      '<div class="stat-card green" style="cursor:default"><div class="stat-label">Cobrado</div><div class="stat-value" style="font-size:16px">S/ '+cobrado.toFixed(0)+'</div></div>'+
+      '<div class="stat-card purple" style="cursor:default"><div class="stat-label">Por cobrar</div><div class="stat-value" style="font-size:16px">S/ '+(total-cobrado).toFixed(0)+'</div></div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;flex-shrink:0">'+
+      '<div class="section-wrap" style="margin-bottom:0"><div class="section-wrap-title">Por estado</div>'+barsEst+'</div>'+
+      '<div class="section-wrap" style="margin-bottom:0"><div class="section-wrap-title">Por marca</div>'+barsM+'</div>'+
+    '</div>'+
+    '<div class="table-wrap" style="flex:1;min-height:0">'+
+      '<div class="table-top" style="padding:8px 12px;flex-shrink:0"><span style="font-size:11px;font-weight:700">Listado — '+titulo+'</span><span style="font-size:11px;color:var(--text2);margin-left:auto">'+c.length+' registros</span></div>'+
+      '<div class="table-scroll"><table><thead><tr><th>ID</th><th>Cliente</th><th>Equipo</th><th>Modelo</th><th>Estado</th><th>Precio</th><th>Cobrado</th><th>Fecha</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '</div>';
   repDataActual[containerId] = c;
 }
-
 function renderReportes() {
   const todos = getClientes();
   buildRepContent('rep-todos',   todos, 'Todos los registros');
-  buildRepContent('rep-diario',  filtrarPorPeriodo(todos,'diario'),  'Hoy ' + today());
+  buildRepContent('rep-diario',  filtrarPorPeriodo(todos,'diario'),  'Hoy '+today());
   buildRepContent('rep-semanal', filtrarPorPeriodo(todos,'semanal'), 'Esta semana');
   buildRepContent('rep-mensual', filtrarPorPeriodo(todos,'mensual'), 'Este mes');
 }
-
 function exportarRepActivo(fmt) {
-  const map = {todos:'rep-todos',diario:'rep-diario',semanal:'rep-semanal',mensual:'rep-mensual'};
-  const c = repDataActual[map[repTabActivo]] || getClientes();
-  if (fmt === 'csv') {
-    let csv = 'ID,Nombre,Tipo,Negocio,Equipo,Modelo,Estado,Precio,Adelanto,Fecha\n';
-    c.forEach(x => { csv += `${x.id},"${x.nombre}","${x.tipoCliente||'cliente'}","${x.negocio||''}","${x.equipo||''}","${x.modelo||''}","${x.estado}","${x.precio||0}","${x.adelanto||0}","${x.fecha||''}"\n`; });
-    descargar(csv, 'text/csv', 'reporte_ronnigsm_' + repTabActivo + '_' + today() + '.csv');
+  const map={todos:'rep-todos',diario:'rep-diario',semanal:'rep-semanal',mensual:'rep-mensual'};
+  const c=repDataActual[map[repTabActivo]]||getClientes();
+  if (fmt==='csv') {
+    let csv='ID,Nombre,Tipo,Equipo,Modelo,Estado,Precio,Cobrado,Fecha\n';
+    c.forEach(x=>{csv+=x.id+',"'+x.nombre+'","'+(x.tipoCliente||'cli')+'","'+(x.equipo||'')+'","'+(x.modelo||'')+'","'+x.estado+'","'+parseFloat(x.precio||0).toFixed(2)+'","'+getCobrado(x).toFixed(2)+'","'+(x.fecha||'')+'"\n';});
+    descargar(csv,'text/csv','reporte_ronnigsm_'+repTabActivo+'_'+today()+'.csv');
   } else {
-    let txt = '=== RONNI GSM - REPORTE ' + repTabActivo.toUpperCase() + ' ===\n';
-    txt += 'Generado: ' + new Date().toLocaleString('es-PE') + '\n\n';
-    c.forEach(x => { txt += `[${x.id}] ${x.nombre} | ${x.equipo} ${x.modelo} | ${x.estado} | S/ ${x.precio} | ${x.fecha}\n`; });
-    descargar(txt, 'text/plain', 'reporte_ronnigsm_' + repTabActivo + '_' + today() + '.txt');
+    let txt='=== RONNI GSM - REPORTE '+repTabActivo.toUpperCase()+' ===\nGenerado: '+new Date().toLocaleString('es-PE')+'\n\n';
+    c.forEach(x=>{txt+='['+x.id+'] '+x.nombre+' | '+x.equipo+' '+x.modelo+' | '+x.estado+' | S/ '+x.precio+' | '+x.fecha+'\n';});
+    descargar(txt,'text/plain','reporte_ronnigsm_'+repTabActivo+'_'+today()+'.txt');
   }
-  toast('Exportado correctamente', 'ok');
+  toast('Exportado','ok');
 }
 function exportarCSV() { exportarRepActivo('csv'); }
 
 // ── REPORTE INGRESOS ──
-function abrirReporteIngresos() {
-  openModal('ingresos');
-  filtrarIngresos('todos', document.getElementById('fi-todos'));
-}
+function abrirReporteIngresos() { openModal('ingresos'); filtrarIngresos('todos',document.getElementById('fi-todos')); }
 function filtrarIngresos(periodo, btnEl) {
   ingPeriodoActual = periodo;
-  ['fi-todos','fi-hoy','fi-semana','fi-mes'].forEach(id => {
-    const b = document.getElementById(id); if (b) b.className = 'btn btn-ghost btn-sm';
-  });
-  if (btnEl) btnEl.className = 'btn btn-primary btn-sm';
+  ['fi-todos','fi-hoy','fi-semana','fi-mes'].forEach(id=>{const b=document.getElementById(id);if(b)b.className='btn btn-ghost btn-sm';});
+  if(btnEl) btnEl.className='btn btn-primary btn-sm';
   ingDataActual = filtrarPorPeriodo(getClientes(), periodo);
   renderTablaIngresos(ingDataActual);
 }
-// cobrado real = totalCobrado si existe, sino adelanto
-function getCobrado(x) { return parseFloat(x.totalCobrado || x.adelanto || 0); }
-function getEfectivo(x) {
-  if (x.estado !== 'Entregado') return 0;
-  if (x.metodoPago === 'efectivo') return parseFloat(x.pagoCierre||0);
-  // adelanto siempre en efectivo si no hay metodoPagoAdelanto
-  return parseFloat(x.adelanto||0);
-}
-function getYape(x) {
-  if (x.estado !== 'Entregado') return 0;
-  if (x.metodoPago === 'yape' || x.metodoPago === 'transferencia') return parseFloat(x.pagoCierre||0);
-  return 0;
-}
-function metodoBadge(m) {
-  if (!m) return '';
-  const map = {
-    efectivo: ['💵','var(--green)','var(--green-dim)'],
-    yape:     ['💜','var(--purple)','var(--purple-dim)'],
-    transferencia: ['🏦','#00b4ff','#001a3a'],
-    mixto:    ['🔀','var(--amber)','var(--amber-dim)']
-  };
-  const [ico,col,bg] = map[m] || ['💳','var(--text2)','var(--surface3)'];
-  return `<span style="font-size:10px;background:${bg};color:${col};border-radius:4px;padding:1px 6px;font-weight:700">${ico} ${m}</span>`;
-}
-
 function renderTablaIngresos(c) {
-  let total=0, cobrado=0, efectivo=0, yape=0;
-  c.forEach(x => {
-    total    += parseFloat(x.precio||0);
-    cobrado  += getCobrado(x);
-    efectivo += getEfectivo(x);
-    yape     += getYape(x);
-  });
-  document.getElementById('ing-total').textContent     = 'S/ ' + total.toFixed(2);
-  document.getElementById('ing-cobrado').textContent   = 'S/ ' + cobrado.toFixed(2);
-  document.getElementById('ing-pendiente').textContent = 'S/ ' + (total-cobrado).toFixed(2);
+  let total=0,cobrado=0,efectivo=0,yape=0;
+  c.forEach(x=>{total+=parseFloat(x.precio||0);cobrado+=getCobrado(x);efectivo+=getEfectivo(x);yape+=getYape(x);});
+  document.getElementById('ing-total').textContent     = 'S/ '+total.toFixed(2);
+  document.getElementById('ing-cobrado').textContent   = 'S/ '+cobrado.toFixed(2);
+  document.getElementById('ing-pendiente').textContent = 'S/ '+(total-cobrado).toFixed(2);
   document.getElementById('ing-count').textContent     = c.length;
-  // Mostrar breakdown efectivo/yape
-  const ef = document.getElementById('ing-efectivo'); if(ef) ef.textContent = 'S/ '+efectivo.toFixed(2);
-  const yp = document.getElementById('ing-yape');     if(yp) yp.textContent = 'S/ '+yape.toFixed(2);
-
-  const tbody = document.getElementById('ing-tbody');
-  tbody.innerHTML = '';
-  if (!c.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px">Sin registros para este período</td></tr>'; return; }
-  c.forEach(x => {
-    const precio  = parseFloat(x.precio||0);
-    const cob     = getCobrado(x);
-    const saldo   = precio - cob;
-    const tr = document.createElement('tr');
-    tr.style.cssText = 'border-top:1px solid var(--border);cursor:pointer';
-    tr.onmouseenter = () => tr.style.background = 'var(--surface2)';
-    tr.onmouseleave = () => tr.style.background = '';
-    tr.onclick = () => { closeModal('ingresos'); verFicha(x.id); };
-    const tipoBadge = x.tipoCliente === 'pdv' ? '<span style="font-size:9px;background:var(--orange-dim);color:var(--orange);border-radius:4px;padding:1px 5px;font-weight:700;margin-left:4px">PDV</span>' : '';
-    tr.innerHTML = `
-      <td style="padding:8px 10px"><span class="id-chip">${x.id}</span></td>
-      <td style="padding:8px 10px;font-size:12px">${x.nombre}${tipoBadge}</td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--text2)">${x.equipo||''} ${x.modelo||''}</td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--text2)">${x.servicio||'—'}</td>
-      <td style="padding:8px 10px">${badgeHTML(x.estado)}</td>
-      <td style="padding:8px 10px">${metodoBadge(x.metodoPago)}</td>
-      <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--purple)">S/ ${precio.toFixed(2)}</td>
-      <td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--green)">S/ ${cob.toFixed(2)}</td>
-      <td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-weight:600;color:${saldo>0?'var(--amber)':'var(--green)'}">S/ ${saldo.toFixed(2)}</td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--text2)">${x.fechaEntrega||x.fecha||''}</td>`;
+  const ef=document.getElementById('ing-efectivo'); if(ef) ef.textContent='S/ '+efectivo.toFixed(2);
+  const yp=document.getElementById('ing-yape');     if(yp) yp.textContent='S/ '+yape.toFixed(2);
+  const tbody=document.getElementById('ing-tbody');
+  tbody.innerHTML='';
+  if (!c.length) { tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px">Sin registros para este período</td></tr>'; return; }
+  c.forEach(x=>{
+    const precio=parseFloat(x.precio||0), cob=getCobrado(x), saldo=precio-cob;
+    const tr=document.createElement('tr');
+    tr.style.cssText='border-top:1px solid var(--border);cursor:pointer';
+    tr.onmouseenter=()=>tr.style.background='var(--surface2)';
+    tr.onmouseleave=()=>tr.style.background='';
+    tr.onclick=()=>{closeModal('ingresos');verFicha(x.id);};
+    const tipob=x.tipoCliente==='pdv'?'<span style="font-size:9px;background:var(--orange-dim);color:var(--orange);border-radius:4px;padding:1px 5px;font-weight:700;margin-left:4px">PDV</span>':'';
+    tr.innerHTML=
+      '<td style="padding:8px 10px"><span class="id-chip">'+x.id+'</span></td>'+
+      '<td style="padding:8px 10px;font-size:12px">'+x.nombre+tipob+'</td>'+
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2)">'+(x.equipo||'')+' '+(x.modelo||'')+'</td>'+
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2)">'+(x.servicio||'—')+'</td>'+
+      '<td style="padding:8px 10px">'+badgeHTML(x.estado)+'</td>'+
+      '<td style="padding:8px 10px">'+metodoBadge(x.metodoPago)+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--purple)">S/ '+precio.toFixed(2)+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--green)">S/ '+cob.toFixed(2)+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);font-weight:600;color:'+(saldo>0?'var(--amber)':'var(--green)')+'">S/ '+saldo.toFixed(2)+'</td>'+
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2)">'+(x.fechaEntrega||x.fecha||'')+'</td>';
     tbody.appendChild(tr);
   });
 }
 function exportarIngresos(fmt) {
-  const c = ingDataActual; const periodo = ingPeriodoActual;
+  const c=ingDataActual, periodo=ingPeriodoActual;
   let tot=0,cob=0,ef=0,yp=0;
-  c.forEach(x=>{tot+=parseFloat(x.precio||0);cob+=getCobrado(x);ef+=getEfectivo(x);yp+=getYape(x)});
-  if (fmt === 'csv') {
-    let csv = 'ID,Cliente,Tipo,Equipo,Modelo,Servicio,Estado,MetodoPago,Precio,Cobrado,Saldo,FechaIngreso,FechaEntrega\n';
-    c.forEach(x => {
-      const p=parseFloat(x.precio||0),cob2=getCobrado(x);
-      csv+=`${x.id},"${x.nombre}","${x.tipoCliente||'cliente'}","${x.equipo||''}","${x.modelo||''}","${x.servicio||''}","${x.estado}","${x.metodoPago||''}","${p.toFixed(2)}","${cob2.toFixed(2)}","${(p-cob2).toFixed(2)}","${x.fecha||''}","${x.fechaEntrega||''}"
-`;
-    });
-    descargar(csv, 'text/csv', 'ingresos_ronnigsm_' + periodo + '_' + today() + '.csv');
+  c.forEach(x=>{tot+=parseFloat(x.precio||0);cob+=getCobrado(x);ef+=getEfectivo(x);yp+=getYape(x);});
+  if (fmt==='csv') {
+    let csv='ID,Cliente,Tipo,Equipo,Modelo,Servicio,Estado,MetodoPago,Precio,Cobrado,Saldo,FechaIngreso,FechaEntrega\n';
+    c.forEach(x=>{const p=parseFloat(x.precio||0),c2=getCobrado(x);csv+=x.id+',"'+x.nombre+'","'+(x.tipoCliente||'cli')+'","'+(x.equipo||'')+'","'+(x.modelo||'')+'","'+(x.servicio||'')+'","'+x.estado+'","'+(x.metodoPago||'')+'","'+p.toFixed(2)+'","'+c2.toFixed(2)+'","'+(p-c2).toFixed(2)+'","'+(x.fecha||'')+'","'+(x.fechaEntrega||'')+'"\n';});
+    descargar(csv,'text/csv','ingresos_ronnigsm_'+periodo+'_'+today()+'.csv');
   } else {
-    let txt = '=== RONNI GSM - INGRESOS ' + periodo.toUpperCase() + ' ===\n';
-    txt += 'Generado: ' + new Date().toLocaleString('es-PE') + '\n';
-    txt += '─'.repeat(42) + '\n';
-    txt += 'Facturación total : S/ '+tot.toFixed(2)+'\n';
-    txt += 'Total cobrado     : S/ '+cob.toFixed(2)+'\n';
-    txt += 'Por cobrar        : S/ '+(tot-cob).toFixed(2)+'\n';
-    txt += 'Cobrado efectivo  : S/ '+ef.toFixed(2)+'\n';
-    txt += 'Cobrado Yape/Trans: S/ '+yp.toFixed(2)+'\n';
-    txt += '─'.repeat(42) + '\n\n';
-    c.forEach(x => {
-      const p=parseFloat(x.precio||0),cob2=getCobrado(x);
-      txt+=`[${x.id}] ${x.nombre} | ${x.equipo} ${x.modelo} | ${x.estado} | ${x.metodoPago||'—'} | S/ ${p.toFixed(2)} | Cobrado: S/ ${cob2.toFixed(2)} | ${x.fecha||''}\n`;
-    });
-    descargar(txt, 'text/plain', 'ingresos_ronnigsm_' + periodo + '_' + today() + '.txt');
+    let txt='=== RONNI GSM - INGRESOS '+periodo.toUpperCase()+' ===\nGenerado: '+new Date().toLocaleString('es-PE')+'\n';
+    txt+='─'.repeat(42)+'\nFacturación: S/ '+tot.toFixed(2)+'\nCobrado: S/ '+cob.toFixed(2)+'\nPor cobrar: S/ '+(tot-cob).toFixed(2)+'\nEfectivo: S/ '+ef.toFixed(2)+'\nYape/Trans: S/ '+yp.toFixed(2)+'\n'+'─'.repeat(42)+'\n';
+    c.forEach(x=>{const p=parseFloat(x.precio||0),c2=getCobrado(x);txt+='['+x.id+'] '+x.nombre+' | '+x.equipo+' '+x.modelo+' | '+x.estado+' | '+(x.metodoPago||'—')+' | S/ '+p.toFixed(2)+' | Cobrado: S/ '+c2.toFixed(2)+' | '+(x.fecha||'')+'\n';});
+    descargar(txt,'text/plain','ingresos_ronnigsm_'+periodo+'_'+today()+'.txt');
   }
-  toast('Exportado', 'ok');
+  toast('Exportado','ok');
 }
 
-// ── CIERRE DE DÍA ──
+// ── CIERRE DÍA ──
 function cerrarDia() {
   const todos = getClientes();
-  const hoy   = today();
+  const hoy   = diaOperativo();
+  // Recibidos hoy = ingresados con fecha de hoy
   const recibidos  = todos.filter(x => x.fecha === hoy);
-  const entregados = todos.filter(x => x.fechaEntrega === hoy || (x.estado==='Entregado' && x.fecha===hoy && !x.fechaEntrega));
+  // Entregados hoy = fechaEntrega de hoy O entregados sin fechaEntrega pero fecha hoy
+  const entregados = todos.filter(x =>
+    x.fechaEntrega === hoy ||
+    (x.estado === 'Entregado' && x.fecha === hoy && !x.fechaEntrega)
+  );
+  // Garantías hoy
+  const garantias  = todos.filter(x => x.estado === 'Garantía' && x.fechaEntrega === hoy);
+  // Pendientes arrastrados de días anteriores (no cobrados)
+  const arrastrados = todos.filter(x =>
+    x.fecha !== hoy &&
+    (x.estado === 'Pendiente' || x.estado === 'En proceso' || x.estado === 'Listo')
+  );
   let ef=0, yp=0, totalCob=0;
   entregados.forEach(x => { ef+=getEfectivo(x); yp+=getYape(x); totalCob+=getCobrado(x); });
-  const sep = '─'.repeat(44);
-  const txt = [
-    '╔══════════════════════════════════════════╗',
-    '║      RONNI GSM — CIERRE DEL DÍA         ║',
-    '╚══════════════════════════════════════════╝',
-    'Fecha : ' + hoy,
-    'Hora  : ' + hora(),
+  const sep = '─'.repeat(46);
+  const lineas = [
+    '╔════════════════════════════════════════════╗',
+    '║       RONNI GSM — CIERRE DEL DÍA          ║',
+    '╚════════════════════════════════════════════╝',
+    'Fecha    : ' + hoy,
+    'Hora     : ' + hora(),
     sep,
-    'EQUIPOS RECIBIDOS HOY    : ' + recibidos.length,
-    'EQUIPOS ENTREGADOS HOY   : ' + entregados.length,
+    'MOVIMIENTOS DEL DÍA',
+    '  Equipos recibidos hoy  : ' + recibidos.length,
+    '  Equipos entregados hoy : ' + entregados.length,
+    '  Garantías del día      : ' + garantias.length,
+    sep,
+    'PENDIENTES ARRASTRADOS (días anteriores)',
+    '  Equipos sin cobrar     : ' + arrastrados.length,
+    ...(arrastrados.length
+      ? arrastrados.map(x => '    ⏳ ['+x.id+'] '+x.nombre+' | '+x.estado+' | S/ '+parseFloat(x.precio||0).toFixed(2)+' | desde '+x.fecha)
+      : ['    (ninguno)']),
     sep,
     'COBROS DEL DÍA',
     '  💵 Efectivo             : S/ ' + ef.toFixed(2),
     '  💜 Yape / Transferencia : S/ ' + yp.toFixed(2),
-    '  ' + '─'.repeat(40),
+    '  ' + sep,
     '  ✅ TOTAL COBRADO        : S/ ' + totalCob.toFixed(2),
     sep,
     'DETALLE ENTREGAS:',
     ...(entregados.length
-      ? entregados.map(x => `  [${x.id}] ${x.nombre} | ${x.equipo} ${x.modelo} | S/ ${getCobrado(x).toFixed(2)} | ${x.metodoPago||'—'}`)
+      ? entregados.map(x => '  ['+x.id+'] '+x.nombre+' | '+x.equipo+' '+x.modelo+' | S/ '+getCobrado(x).toFixed(2)+' | '+(x.metodoPago||'—'))
       : ['  Sin entregas hoy.']),
     sep,
     '     Ronni GSM · ' + new Date().toLocaleString('es-PE'),
     '══════════════════════════════════════════════'
-  ].join('\n');
-  document.getElementById('cierre-dia-preview').textContent = txt;
+  ];
+  document.getElementById('cierre-dia-preview').textContent = lineas.join('\n');
   openModal('cierre-dia');
 }
 function exportarCierreDia() {
-  const txt = document.getElementById('cierre-dia-preview').textContent;
-  descargar(txt, 'text/plain', 'cierre_dia_ronnigsm_' + today() + '.txt');
-  toast('Cierre del día exportado', 'ok');
+  const txt=document.getElementById('cierre-dia-preview').textContent;
+  descargar(txt,'text/plain','cierre_dia_ronnigsm_'+today()+'.txt');
+  toast('Cierre exportado','ok');
 }
 
+// ── HISTORIAL PDV ──
+function abrirListaPDVs() { verHistorialPDV(null); }
+
+function toggleNuevoPDVForm() {
+  const form = document.getElementById('nuevo-pdv-form');
+  if (!form) return;
+  const visible = form.style.display !== 'none';
+  form.style.display = visible ? 'none' : 'block';
+  if (!visible) setTimeout(()=>{ const inp=document.getElementById('nuevo-pdv-nombre'); if(inp) inp.focus(); },50);
+  else { const inp=document.getElementById('nuevo-pdv-nombre'); if(inp) inp.value=''; }
+}
+
+function crearNuevoPDV() {
+  const inp = document.getElementById('nuevo-pdv-nombre');
+  if (!inp) return;
+  const nombre = inp.value.trim();
+  if (!nombre) { toast('Escribe el nombre del PDV','err'); inp.focus(); return; }
+  const pdvs = getPDVs();
+  const existe = pdvs.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+  if (existe) { toast('Ya existe un PDV con ese nombre','err'); return; }
+  const nuevo = {id: nextPdvId(), nombre, creado: today()};
+  pdvs.push(nuevo);
+  savePDVs(pdvs);
+  updateBadges();
+  // Actualizar selector del modal
+  const sel = document.getElementById('pdv-hist-sel');
+  if (sel) {
+    const opt = document.createElement('option');
+    opt.value = nuevo.id; opt.textContent = nuevo.nombre; opt.selected = true;
+    sel.appendChild(opt);
+  }
+  inp.value = '';
+  toggleNuevoPDVForm();
+  cargarHistorialPDV(nuevo.id);
+  toast('PDV creado: ' + nuevo.nombre, 'ok');
+}
+function verHistorialPDV(pdvId) {
+  const sel=document.getElementById('pdv-hist-sel');
+  sel.innerHTML='<option value="">— Seleccionar PDV —</option>';
+  getPDVs().forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.id; o.textContent=p.nombre;
+    if(pdvId&&p.id===pdvId) o.selected=true;
+    sel.appendChild(o);
+  });
+  openModal('pdv-historial');
+  if(pdvId) cargarHistorialPDV(pdvId);
+  else document.getElementById('pdv-hist-titulo').textContent='Historial PDV';
+}
+function cargarHistorialPDV(pdvId) {
+  if(!pdvId) return;
+  const pdv=getPDVById(pdvId);
+  document.getElementById('pdv-hist-titulo').textContent='🏪 '+(pdv?pdv.nombre:pdvId);
+  const trabajos=getClientes().filter(c=>c.pdvId===pdvId);
+  let total=0,cobrado=0;
+  trabajos.forEach(x=>{total+=parseFloat(x.precio||0);cobrado+=getCobrado(x);});
+  document.getElementById('pdv-stat-total').textContent   = trabajos.length;
+  document.getElementById('pdv-stat-factura').textContent = 'S/ '+total.toFixed(2);
+  document.getElementById('pdv-stat-cobrado').textContent = 'S/ '+cobrado.toFixed(2);
+  document.getElementById('pdv-stat-pend').textContent    = 'S/ '+(total-cobrado).toFixed(2);
+  document.getElementById('pdv-hist-stats').style.display = 'block';
+  const tbody=document.getElementById('pdv-hist-tbody');
+  tbody.innerHTML='';
+  if(!trabajos.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:24px">Sin trabajos registrados para este PDV</td></tr>';return;}
+  trabajos.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).forEach(x=>{
+    const cob=getCobrado(x),saldo=parseFloat(x.precio||0)-cob;
+    const tr=document.createElement('tr');
+    tr.style.cssText='border-top:1px solid var(--border);cursor:pointer';
+    tr.onmouseenter=()=>tr.style.background='var(--surface2)';
+    tr.onmouseleave=()=>tr.style.background='';
+    tr.onclick=()=>{closeModal('pdv-historial');verFicha(x.id);};
+    tr.innerHTML=
+      '<td style="padding:8px 10px"><span class="id-chip">'+x.id+'</span></td>'+
+      '<td style="padding:8px 10px;font-size:12px">'+x.nombre+'</td>'+
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2)">'+(x.equipo||'')+' '+(x.modelo||'')+'</td>'+
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2)">'+(x.servicio||'—')+'</td>'+
+      '<td style="padding:8px 10px">'+badgeHTML(x.estado)+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--purple)">S/ '+parseFloat(x.precio||0).toFixed(2)+'</td>'+
+      '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:var(--green)">S/ '+cob.toFixed(2)+'</td>'+
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2)">'+(x.fecha||'')+'</td>';
+    tbody.appendChild(tr);
+  });
+  window._pdvHistData={pdv:pdv||{id:pdvId,nombre:pdvId},trabajos};
+}
+function exportarHistorialPDV(fmt) {
+  const d=window._pdvHistData; if(!d){toast('Selecciona un PDV','err');return;}
+  const {pdv,trabajos}=d;
+  if(fmt==='csv'){
+    let csv='ID,Contacto,Equipo,Modelo,Servicio,Estado,Precio,Cobrado,Saldo,Fecha\n';
+    trabajos.forEach(x=>{const p=parseFloat(x.precio||0),c=getCobrado(x);csv+=x.id+',"'+x.nombre+'","'+(x.equipo||'')+'","'+(x.modelo||'')+'","'+(x.servicio||'')+'","'+x.estado+'","'+p.toFixed(2)+'","'+c.toFixed(2)+'","'+(p-c).toFixed(2)+'","'+(x.fecha||'')+'"\n';});
+    descargar(csv,'text/csv','historial_'+pdv.nombre.replace(/\s+/g,'_')+'_'+today()+'.csv');
+  } else {
+    let tot=0,cob=0; trabajos.forEach(x=>{tot+=parseFloat(x.precio||0);cob+=getCobrado(x);});
+    let txt='=== RONNI GSM - HISTORIAL PDV ===\nPDV: '+pdv.nombre+' ('+pdv.id+')\nGenerado: '+new Date().toLocaleString('es-PE')+'\n'+'─'.repeat(44)+'\n';
+    txt+='Trabajos: '+trabajos.length+' | Facturado: S/ '+tot.toFixed(2)+' | Cobrado: S/ '+cob.toFixed(2)+' | Pendiente: S/ '+(tot-cob).toFixed(2)+'\n'+'─'.repeat(44)+'\n';
+    trabajos.forEach(x=>{const c=getCobrado(x);txt+='['+x.id+'] '+x.nombre+' | '+x.equipo+' '+x.modelo+' | '+x.estado+' | S/ '+parseFloat(x.precio||0).toFixed(2)+' | '+x.fecha+'\n';});
+    descargar(txt,'text/plain','historial_'+pdv.nombre.replace(/\s+/g,'_')+'_'+today()+'.txt');
+  }
+  toast('Exportado','ok');
+}
 
 // ── IMPRESORA ──
 function updatePrintUI() {
-  const t = document.getElementById('print-tipo').value;
-  document.getElementById('print-usb-conf').style.display = t==='usb' ? 'block' : 'none';
-  document.getElementById('print-red-conf').style.display = t==='red' ? 'block' : 'none';
+  const t=document.getElementById('print-tipo').value;
+  document.getElementById('print-usb-conf').style.display=t==='usb'?'block':'none';
+  document.getElementById('print-red-conf').style.display=t==='red'?'block':'none';
 }
 function poblarPrintSelect() {
-  const sel = document.getElementById('print-cliente-sel');
-  const q = (document.getElementById('print-search').value||'').toLowerCase();
-  const c = getClientes().filter(x => !q || (x.nombre+x.id).toLowerCase().includes(q));
-  sel.innerHTML = '';
-  c.forEach(x => { const o = document.createElement('option'); o.value=x.id; o.textContent=x.id+' · '+x.nombre+' · '+x.equipo+' '+x.modelo; sel.appendChild(o); });
-  if (sel.options.length) generarPreview();
+  const sel=document.getElementById('print-cliente-sel');
+  const q=(document.getElementById('print-search').value||'').toLowerCase();
+  const c=getClientes().filter(x=>!q||(x.nombre+x.id).toLowerCase().includes(q));
+  sel.innerHTML='';
+  c.forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.id+' · '+x.nombre+' · '+x.equipo+' '+x.modelo;sel.appendChild(o);});
+  if(sel.options.length) generarPreview();
 }
 function buscarParaImprimir() { poblarPrintSelect(); }
-function selTipoTicket(t) { tipoTicket = t; generarPreview(); }
+function selTipoTicket(t) { tipoTicket=t; generarPreview(); }
 function generarPreview() {
-  const sel = document.getElementById('print-cliente-sel'); if (!sel.value) return;
-  const c = getClientes().find(x => x.id === sel.value); if (!c) return;
-  document.getElementById('print-preview').textContent = generarTextoTicket(c, tipoTicket);
+  const sel=document.getElementById('print-cliente-sel'); if(!sel.value) return;
+  const c=getClientes().find(x=>x.id===sel.value); if(!c) return;
+  document.getElementById('print-preview').textContent=generarTextoTicket(c,tipoTicket);
+  generarQRPanel(c.id);
 }
-function generarTextoTicket(c, tipo) {
-  const ancho  = parseInt(document.getElementById('print-ancho')?.value || 42) || 42;
-  const neg    = document.getElementById('print-negocio')?.value || 'RONNI GSM';
-  const dir    = document.getElementById('print-dir')?.value || '';
-  const footer = document.getElementById('print-footer')?.value || '¡Gracias por su preferencia!';
-  const showImei  = document.getElementById('opt-imei')?.checked !== false;
-  const showPrecio= document.getElementById('opt-precio')?.checked !== false;
-  const showLogo  = document.getElementById('opt-logo')?.checked !== false;
-  const sep    = '─'.repeat(ancho);
-  const center = s => { const p=Math.max(0,Math.floor((ancho-s.length)/2)); return ' '.repeat(p)+s; };
-  const row    = (l,v) => { const sp=Math.max(1,ancho-l.length-v.length); return l+' '.repeat(sp)+v; };
-  let t = '';
-  if (showLogo) { t += center(neg)+'\n'; if (dir) t += center(dir)+'\n'; }
-  t += sep+'\n';
-  t += center(tipo==='ingreso' ? '*** COMPROBANTE DE INGRESO ***' : tipo==='entrega' ? '*** TICKET DE ENTREGA ***' : '*** PRESUPUESTO ***')+'\n';
-  t += sep+'\n';
-  t += row('ID:', c.id)+'\n'+row('Fecha:', c.fecha+(c.hora?' '+c.hora:''))+'\n'+sep+'\n';
-  t += 'CLIENTE:\n  '+c.nombre+'\n'; if (c.telefono) t += '  Tel: '+c.telefono+'\n';
-  t += sep+'\n';
-  t += 'EQUIPO:\n  '+(c.equipo||'')+(c.modelo?' '+c.modelo:'')+'\n';
-  if (c.color) t += '  Color: '+c.color+'\n';
-  if (showImei && c.imei) t += '  IMEI: '+c.imei+'\n';
-  if (c.fisico) t += '  Estado: '+c.fisico+'\n';
-  if (c.accesorios) t += '  Accesorios: '+c.accesorios+'\n';
-  t += sep+'\n';
-  if (c.servicio) t += 'Servicio: '+c.servicio+'\n';
-  if (c.problema) t += 'Falla: '+c.problema.slice(0,ancho-7)+'\n';
-  if (c.tecnico) t += 'Tecnico: '+c.tecnico+'\n';
-  if (showPrecio) {
-    t += sep+'\n';
-    t += row('Precio estimado:', 'S/ '+parseFloat(c.precio||0).toFixed(2))+'\n';
-    t += row('Adelanto:', 'S/ '+parseFloat(c.adelanto||0).toFixed(2))+'\n';
-    t += row('Saldo:', 'S/ '+(parseFloat(c.precio||0)-parseFloat(c.adelanto||0)).toFixed(2))+'\n';
+function generarTextoTicket(c,tipo) {
+  const ancho=parseInt(document.getElementById('print-ancho')?.value||42)||42;
+  const neg=document.getElementById('print-negocio')?.value||'RONNI GSM';
+  const dir=document.getElementById('print-dir')?.value||'';
+  const footer=document.getElementById('print-footer')?.value||'¡Gracias por su preferencia!';
+  const showImei=document.getElementById('opt-imei')?.checked!==false;
+  const showPrecio=document.getElementById('opt-precio')?.checked!==false;
+  const showLogo=document.getElementById('opt-logo')?.checked!==false;
+  const sep='─'.repeat(ancho);
+  const center=s=>{const p=Math.max(0,Math.floor((ancho-s.length)/2));return ' '.repeat(p)+s;};
+  const row=(l,v)=>{const sp=Math.max(1,ancho-l.length-v.length);return l+' '.repeat(sp)+v;};
+  let t='';
+  if(showLogo){t+=center(neg)+'\n';if(dir)t+=center(dir)+'\n';}
+  t+=sep+'\n';
+  t+=center(tipo==='ingreso'?'*** COMPROBANTE DE INGRESO ***':tipo==='entrega'?'*** TICKET DE ENTREGA ***':'*** PRESUPUESTO ***')+'\n';
+  t+=sep+'\n';
+  t+=row('ID:',c.id)+'\n'+row('Fecha:',c.fecha+(c.hora?' '+c.hora:''))+'\n'+sep+'\n';
+  t+='CLIENTE:\n  '+c.nombre+'\n';if(c.telefono)t+='  Tel: '+c.telefono+'\n';
+  t+=sep+'\n';
+  t+='EQUIPO:\n  '+(c.equipo||'')+(c.modelo?' '+c.modelo:'')+'\n';
+  if(c.color)t+='  Color: '+c.color+'\n';
+  if(showImei&&c.imei)t+='  IMEI: '+c.imei+'\n';
+  if(c.fisico)t+='  Estado: '+c.fisico+'\n';
+  if(c.accesorios)t+='  Accesorios: '+c.accesorios+'\n';
+  t+=sep+'\n';
+  if(c.servicio)t+='Servicio: '+c.servicio+'\n';
+  if(c.problema)t+='Falla: '+c.problema.slice(0,ancho-7)+'\n';
+  if(c.tecnico)t+='Tecnico: '+c.tecnico+'\n';
+  if(showPrecio){
+    t+=sep+'\n';
+    t+=row('Precio estimado:','S/ '+parseFloat(c.precio||0).toFixed(2))+'\n';
+    t+=row('Adelanto:','S/ '+parseFloat(c.adelanto||0).toFixed(2))+'\n';
+    t+=row('Saldo:','S/ '+(parseFloat(c.precio||0)-parseFloat(c.adelanto||0)).toFixed(2))+'\n';
   }
-  t += sep+'\n'+'Estado: '+c.estado+'\n';
-  if (tipo === 'ingreso') t += '\nFirma cliente: ________________\n';
-  t += sep+'\n'+center(footer)+'\n';
+  t+=sep+'\n'+'Estado: '+c.estado+'\n';
+  if(tipo==='ingreso')t+='\nFirma cliente: ________________\n';
+  t+=sep+'\n';
+  t+=center('Escanea el QR para ver tu estado')+'\n';
+  t+=center(LANDING_URL+'/?id='+c.id)+'\n';
+  t+=sep+'\n'+center(footer)+'\n';
   return t;
 }
 function imprimirTicket() {
-  const texto = document.getElementById('print-preview').textContent;
-  if (!texto || texto.startsWith('Selecciona')) { toast('Selecciona un cliente','err'); return; }
-  const tipo = document.getElementById('print-tipo').value;
-  if (tipo === 'pdf') { descargar(texto,'text/plain','ticket_ronnigsm.txt'); toast('Guardado','ok'); return; }
-  const w = window.open('','_blank','width=400,height=600');
-  w.document.write(`<html><body style="font-family:Courier New;font-size:12px;white-space:pre;margin:8px">${texto}</body></html>`);
-  w.document.close(); w.print(); w.close(); toast('Enviado a impresora','ok');
+  const texto=document.getElementById('print-preview').textContent;
+  if(!texto||texto.startsWith('Selecciona')){toast('Selecciona un cliente','err');return;}
+  const tipo=document.getElementById('print-tipo').value;
+  if(tipo==='pdf'){descargar(texto,'text/plain','ticket_ronnigsm.txt');toast('Guardado','ok');return;}
+
+  // Obtener el cliente activo para generar su QR
+  const sel=document.getElementById('print-cliente-sel');
+  const clienteId = sel ? sel.value : '';
+  const qrUrl = clienteId ? (LANDING_URL + '/?id=' + encodeURIComponent(clienteId)) : '';
+
+  // Generar QR como dataURL para embeber en la ventana de impresión
+  function abrirVentanaConQR(qrDataUrl) {
+    const qrHtml = qrDataUrl
+      ? `<div style="margin-top:10px;text-align:center">
+           <img src="${qrDataUrl}" width="90" height="90" style="display:block;margin:0 auto 4px">
+           <span style="font-size:9px;color:#555">Escanea para ver tu estado</span>
+         </div>`
+      : '';
+    const w=window.open('','_blank','width=400,height=650');
+    w.document.write(
+      '<html><head><style>@media print{.no-print{display:none}}</style></head>' +
+      '<body style="font-family:Courier New;font-size:12px;white-space:pre;margin:8px">' +
+      texto + qrHtml +
+      '</body></html>'
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(()=>{w.print();},400);
+    toast('Enviado a impresora','ok');
+  }
+
+  if (qrUrl) {
+    // Generar QR temporal para capturar su imagen
+    const tmpDiv = document.createElement('div');
+    tmpDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+    document.body.appendChild(tmpDiv);
+    try {
+      const qr = new QRCode(tmpDiv, {text:qrUrl, width:90, height:90, colorDark:'#000', colorLight:'#fff', correctLevel:QRCode.CorrectLevel.M});
+      setTimeout(()=>{
+        const canvas = tmpDiv.querySelector('canvas');
+        const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+        document.body.removeChild(tmpDiv);
+        abrirVentanaConQR(dataUrl);
+      }, 200);
+    } catch(e) {
+      document.body.removeChild(tmpDiv);
+      abrirVentanaConQR('');
+    }
+  } else {
+    abrirVentanaConQR('');
+  }
 }
 function guardarPDF() {
   const sel=document.getElementById('print-cliente-sel');
   const texto=document.getElementById('print-preview').textContent;
-  if (!texto||!sel.value){toast('Selecciona un cliente','err');return}
-  descargar(texto,'text/plain','ticket_'+sel.value+'.txt'); toast('Guardado','ok');
+  if(!texto||!sel.value){toast('Selecciona un cliente','err');return;}
+  descargar(texto,'text/plain','ticket_'+sel.value+'.txt');toast('Guardado','ok');
 }
-function testPrinter(){toast('Probando...','info');setTimeout(()=>toast('OK (simulado)','ok'),800)}
+function testPrinter(){toast('Probando...','info');setTimeout(()=>toast('OK (simulado)','ok'),800);}
 function imprimirCliente(id) {
-  const c = getClientes().find(x => x.id === id); if (!c) return;
-  document.getElementById('modal-ticket-preview').textContent = generarTextoTicket(c,'ingreso');
+  const c=getClientes().find(x=>x.id===id);if(!c)return;
+  _ticketClienteId = id;
+  document.getElementById('modal-ticket-preview').textContent=generarTextoTicket(c,'ingreso');
   openModal('ticket');
+  setTimeout(()=>generarQRModal(c.id),100);
+}
+
+function imprimirDesdeModal(id) {
+  const c=getClientes().find(x=>x.id===id);if(!c)return;
+  const texto=generarTextoTicket(c,'ingreso');
+  const qrUrl=LANDING_URL+'/?id='+encodeURIComponent(c.id);
+  const tmpDiv=document.createElement('div');
+  tmpDiv.style.cssText='position:absolute;left:-9999px;top:-9999px';
+  document.body.appendChild(tmpDiv);
+  try {
+    new QRCode(tmpDiv,{text:qrUrl,width:90,height:90,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+    setTimeout(()=>{
+      const canvas=tmpDiv.querySelector('canvas');
+      const dataUrl=canvas?canvas.toDataURL('image/png'):'';
+      document.body.removeChild(tmpDiv);
+      const qrHtml=dataUrl
+        ?`<div style="margin-top:10px;text-align:center"><img src="${dataUrl}" width="90" height="90" style="display:block;margin:0 auto 4px"><span style="font-size:9px;color:#555">Escanea para ver tu estado</span></div>`
+        :'';
+      const w=window.open('','_blank','width=400,height=650');
+      w.document.write('<html><body style="font-family:Courier New;font-size:12px;white-space:pre;margin:8px">'+texto+qrHtml+'</body></html>');
+      w.document.close();w.focus();setTimeout(()=>{w.print();},400);
+      toast('Enviado a impresora','ok');
+    },200);
+  } catch(e) {
+    document.body.removeChild(tmpDiv);
+    const w=window.open('','_blank','width=400,height=600');
+    w.document.write('<html><body style="font-family:Courier New;font-size:12px;white-space:pre;margin:8px">'+texto+'</body></html>');
+    w.document.close();w.print();
+  }
+}
+
+// ── QR ──
+function generarQRModal(id) {
+  const wrap = document.getElementById('qr-modal-wrap');
+  const box  = document.getElementById('qr-modal-box');
+  if (!wrap || !box) return;
+  box.innerHTML = '';
+  const url = LANDING_URL + '/?id=' + encodeURIComponent(id);
+  try {
+    new QRCode(box, {text: url, width: 54, height: 54, colorDark:'#000', colorLight:'#fff', correctLevel: QRCode.CorrectLevel.M});
+    wrap.style.display = 'flex';
+  } catch(e) { console.warn('QR error', e); }
+}
+function generarQRPanel(id) {
+  const wrap = document.getElementById('qr-print-wrap');
+  const box  = document.getElementById('qr-print-box');
+  const link = document.getElementById('qr-print-link');
+  if (!wrap || !box) return;
+  if (!id) { wrap.style.display='none'; return; }
+  box.innerHTML = '';
+  const url = LANDING_URL + '/?id=' + encodeURIComponent(id);
+  try {
+    new QRCode(box, {text: url, width: 64, height: 64, colorDark:'#000', colorLight:'#fff', correctLevel: QRCode.CorrectLevel.M});
+    if (link) { link.href = url; link.textContent = url; }
+    wrap.style.display = 'flex';
+  } catch(e) { console.warn('QR error', e); }
 }
 
 // ── DB ──
-function toggleDB() { setDB(DB_MODE === 'local' ? 'cloud' : 'local'); }
+function toggleDB() { setDB(DB_MODE==='local'?'cloud':'local'); }
 function applyDBModeUI() {
-  const mode = DB_MODE;
-  document.getElementById('db-pill').textContent = mode==='local'?'LOCAL':'NUBE';
-  document.getElementById('db-pill').className   = 'db-pill '+(mode==='local'?'local':'cloud');
-  const optL = document.getElementById('db-opt-local');
-  const optC = document.getElementById('db-opt-cloud');
-  if (optL) optL.classList.toggle('selected', mode==='local');
-  if (optC) optC.classList.toggle('selected', mode==='cloud');
-  const rL = document.getElementById('r-local'); if(rL) rL.checked = mode==='local';
-  const rC = document.getElementById('r-cloud'); if(rC) rC.checked = mode==='cloud';
-  const cc = document.getElementById('cloud-config'); if (cc) cc.style.display = mode==='cloud'?'block':'none';
+  const mode=DB_MODE;
+  const dp=document.getElementById('db-pill'); if(dp){dp.textContent=mode==='local'?'LOCAL':'NUBE';dp.className='db-pill '+(mode==='local'?'local':'cloud');}
+  const ol=document.getElementById('db-opt-local'); if(ol)ol.classList.toggle('selected',mode==='local');
+  const oc=document.getElementById('db-opt-cloud'); if(oc)oc.classList.toggle('selected',mode==='cloud');
+  const rl=document.getElementById('r-local'); if(rl)rl.checked=mode==='local';
+  const rc=document.getElementById('r-cloud'); if(rc)rc.checked=mode==='cloud';
+  const cc=document.getElementById('cloud-config'); if(cc)cc.style.display=mode==='cloud'?'block':'none';
 }
 function setDB(mode) {
-  DB_MODE = mode;
-  localStorage.setItem('ronni_db_mode', mode);
-  applyDBModeUI();
-  cargarDatos();
+  DB_MODE=mode; localStorage.setItem('ronni_db_mode',mode);
+  applyDBModeUI(); cargarDatos();
 }
-async function testCloud() {
-  toast('Probando conexión con el backend...','info');
-  try {
-    const res = await fetch(API_URL + '/');
-    const data = await res.json();
-    toast('✓ Backend OK: ' + data.app,'ok');
-  } catch(e) {
-    toast('Error: ' + e.message,'err');
-  }
-}
-function saveCloudConfig(){toast('Configuración guardada','ok')}
+function testCloud(){toast('Probando backend...','info');fetch(API_URL+'/').then(r=>r.json()).then(d=>toast('✓ '+d.app,'ok')).catch(e=>toast('Error: '+e.message,'err'));}
+function saveCloudConfig(){toast('Guardado','ok');}
 function updateDBInfo() {
-  const c = getClientes();
-  const modeLabel = DB_MODE === 'cloud'
-    ? '<span style="color:var(--cyan)">☁️ NUBE (Google Drive)</span>'
-    : '<span style="color:var(--amber)">💾 LOCAL</span>';
-  document.getElementById('db-info').innerHTML = `Modo: <strong>${modeLabel}</strong> &nbsp;·&nbsp; Registros: <strong>${c.length}</strong> &nbsp;·&nbsp; Tamaño: <strong>${(JSON.stringify(c).length/1024).toFixed(1)} KB</strong> &nbsp;·&nbsp; Actualizado: <strong>${new Date().toLocaleTimeString('es-PE')}</strong><br><span style="font-size:10px;color:var(--text3)">Backend: ${API_URL}</span>`;
+  const c=getClientes();
+  const el=document.getElementById('db-info');
+  if(el)el.innerHTML='Modo: <strong style="color:var(--cyan)">'+DB_MODE.toUpperCase()+'</strong> &nbsp;·&nbsp; Registros: <strong>'+c.length+'</strong> &nbsp;·&nbsp; Tamaño: <strong>'+(JSON.stringify(c).length/1024).toFixed(1)+' KB</strong> &nbsp;·&nbsp; Actualizado: <strong>'+new Date().toLocaleTimeString('es-PE')+'</strong><br><span style="font-size:10px;color:var(--text3)">Backend: '+API_URL+'</span>';
 }
-function exportarJSON() { descargar(JSON.stringify(getClientes(),null,2),'application/json','ronnigsm_backup_'+today()+'.json'); toast('JSON exportado','ok'); }
-function importarJSON() { document.getElementById('import-file').click(); }
+function exportarJSON(){descargar(JSON.stringify(getClientes(),null,2),'application/json','ronnigsm_backup_'+today()+'.json');toast('JSON exportado','ok');}
+function importarJSON(){document.getElementById('import-file').click();}
 function handleImport(e) {
-  const f = e.target.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = ev => {
-    try {
-      const d = JSON.parse(ev.target.result);
-      if (!Array.isArray(d)) throw new Error('Formato inválido');
-      if (!confirm('Importar '+d.length+' registros? Sobreescribirá los datos actuales.')) return;
-      saveClientes(d); toast(d.length+' registros importados','ok'); renderClientes();
-    } catch(ex) { toast('Error: '+ex.message,'err'); }
-  };
-  r.readAsText(f);
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{const d=JSON.parse(ev.target.result);if(!Array.isArray(d))throw new Error('Formato inválido');
+      if(!confirm('Importar '+d.length+' registros?'))return;
+      saveClientesLocal(d);_cache=null;toast(d.length+' importados','ok');renderClientes();}
+    catch(ex){toast('Error: '+ex.message,'err');}
+  };r.readAsText(f);
 }
-function limpiarDatos(){if(confirm('¿Eliminar datos demo?')){saveClientes([]);renderClientes();refreshDash();toast('Limpiado','ok')}}
-function borrarTodo(){if(confirm('⚠️ ¿BORRAR TODO? No se puede deshacer.')){localStorage.removeItem('ronni_clientes');saveClientes([]);renderClientes();refreshDash();toast('BD borrada','ok')}}
+function limpiarDatos(){if(confirm('¿Eliminar datos demo?')){saveClientesLocal([]);_cache=null;renderClientes();refreshDash();toast('Limpiado','ok');}}
+function borrarTodo(){if(confirm('⚠️ ¿BORRAR TODO?')){localStorage.removeItem('ronni_clientes');localStorage.removeItem('ronni_pdvs');_cache=null;saveClientesLocal([]);renderClientes();refreshDash();toast('BD borrada','ok');}}
 
 // ── UTILS ──
-function descargar(data, type, name) {
-  const b = new Blob([data], {type: type+';charset=utf-8'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
-}
-function toast(msg, type='info') {
-  const wrap = document.getElementById('toasts');
-  const t = document.createElement('div'); t.className='toast '+type;
-  t.innerHTML = `<span style="font-size:14px">${{ok:'✓',err:'✕',info:'ℹ'}[type]||'ℹ'}</span> ${msg}`;
+function descargar(data,type,name){const b=new Blob([data],{type:type+';charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();}
+function toast(msg,type='info'){
+  const wrap=document.getElementById('toasts');
+  const t=document.createElement('div');t.className='toast '+type;
+  t.innerHTML='<span style="font-size:14px">'+({ok:'✓',err:'✕',info:'ℹ'}[type]||'ℹ')+'</span> '+msg;
   wrap.appendChild(t);
-  setTimeout(()=>{ t.style.transition='.3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3000);
+  setTimeout(()=>{t.style.transition='.3s';t.style.opacity='0';setTimeout(()=>t.remove(),300);},3000);
 }
 
-// ── PWA: REGISTRAR SERVICE WORKER ──
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => {
-        console.log('[PWA] SW registrado:', reg.scope);
-        // Detectar actualización disponible
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              toast('Nueva versión disponible — recarga para actualizar', 'info');
-            }
-          });
-        });
-      })
-      .catch(err => console.warn('[PWA] SW error:', err));
+// ── PWA ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('[SW]',err));
   });
 }
-
-// ── PWA: BANNER INSTALAR ──
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  // Mostrar botón instalar en topbar después de 3 seg
-  setTimeout(() => {
-    const tb = document.querySelector('.topbar');
-    if (!tb || document.getElementById('btn-instalar')) return;
-    const btn = document.createElement('button');
-    btn.id = 'btn-instalar';
-    btn.className = 'topbar-btn';
-    btn.style.cssText = 'background:var(--green);color:#000;margin-right:4px;font-size:10px;padding:5px 10px';
-    btn.textContent = '📲 Instalar App';
-    btn.onclick = () => {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(choice => {
-        if (choice.outcome === 'accepted') {
-          toast('¡App instalada correctamente!', 'ok');
-          btn.remove();
-        }
-        deferredPrompt = null;
-      });
-    };
-    // Insertar antes del botón + Nueva Ficha
-    const btnNueva = tb.querySelector('.topbar-btn');
-    if (btnNueva) tb.insertBefore(btn, btnNueva);
-    else tb.appendChild(btn);
-  }, 3000);
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  setTimeout(()=>{
+    const tb=document.querySelector('.topbar');
+    if(!tb||document.getElementById('btn-instalar'))return;
+    const btn=document.createElement('button');
+    btn.id='btn-instalar';btn.className='topbar-btn';
+    btn.style.cssText='background:var(--green);color:#000;margin-right:4px;font-size:10px;padding:5px 10px';
+    btn.textContent='📲 Instalar App';
+    btn.onclick=()=>{deferredPrompt.prompt();deferredPrompt.userChoice.then(c=>{if(c.outcome==='accepted'){toast('¡App instalada!','ok');btn.remove();}deferredPrompt=null;});};
+    const bn=tb.querySelector('.topbar-btn');if(bn)tb.insertBefore(btn,bn);else tb.appendChild(btn);
+  },3000);
 });
-
-window.addEventListener('appinstalled', () => {
-  toast('¡Ronni GSM instalado como app!', 'ok');
-  deferredPrompt = null;
-  const btn = document.getElementById('btn-instalar');
-  if (btn) btn.remove();
-});
+window.addEventListener('appinstalled',()=>{toast('¡Ronni GSM instalado!','ok');deferredPrompt=null;const b=document.getElementById('btn-instalar');if(b)b.remove();});
 
 // ── INIT ──
 applyDBModeUI();
 updatePrintUI();
-const _d = new Date(); _d.setDate(_d.getDate()+3);
-document.getElementById('in-entrega').value = _d.toISOString().split('T')[0];
-document.getElementById('dash-fecha').textContent = new Date().toLocaleDateString('es-PE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-// Cargar datos (local o nube según modo guardado)
-cargarDatos().then(() => {
-  setTimeout(poblarPrintSelect, 200);
-  renderReportes();
-});
+const _d=new Date();_d.setDate(_d.getDate()+3);
+const ie=document.getElementById('in-entrega');if(ie)ie.value=_d.toISOString().split('T')[0];
+const df=document.getElementById('dash-fecha');if(df)df.textContent=new Date().toLocaleDateString('es-PE',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+cargarDatos().then(()=>{setTimeout(poblarPrintSelect,200);renderReportes();});
 </script>
 </body>
 </html>
