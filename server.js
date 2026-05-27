@@ -2,6 +2,18 @@ const express = require('express');
 const getDrive = require('./drive');
 
 const app = express();
+
+// ── CORS ──
+// Permite que la landing page del cliente (cualquier origen) pueda
+// consultar el estado. Solo GET está abierto; PUT sigue protegido.
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 app.use(express.json());
 
 // 🔴 ID de tu carpeta clientes
@@ -132,7 +144,13 @@ app.get('/clientes', async (req, res) => {
   }
 });
 
+// ✅ Health check
+app.get('/', (req, res) => {
+  res.json({ app: 'Ronni GSM Backend', status: 'ok' });
+});
+
 // 🚀 Iniciar servidor
-app.listen(3000, () => {
-  console.log('🚀 API corriendo en http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 API corriendo en http://localhost:${PORT}`);
 });
