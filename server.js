@@ -262,17 +262,18 @@ app.put('/clientes/:id', authMiddleware, async (req, res) => {
     const fileName = req.params.id + '.json';
     const newData  = req.body;
 
-    // Técnico solo puede guardar si el tecnico del registro es él
-    if (req.user.rol === 'tecnico') {
-      const tecnicoEnDato = (newData.tecnico || '').toLowerCase();
-      if (tecnicoEnDato !== req.user.nombre.toLowerCase()) {
-        return res.status(403).json({ error: 'No puedes editar fichas de otro técnico' });
-      }
+    // Si es técnico y el dato no trae técnico, auto-asignar su nombre
+    if (req.user.rol === 'tecnico' && !newData.tecnico) {
+      newData.tecnico = req.user.nombre;
     }
 
     let file = await findFile(drive, fileName);
 
     if (!file) {
+      // Ficha nueva — técnico solo puede crearla a su nombre
+      if (req.user.rol === 'tecnico') {
+        newData.tecnico = req.user.nombre;
+      }
       await drive.files.create({
         requestBody: { name: fileName, parents: [FOLDER_ID] },
         media: { mimeType: 'application/json', body: JSON.stringify({ ...newData, version: 1 }) },
@@ -284,7 +285,7 @@ app.put('/clientes/:id', authMiddleware, async (req, res) => {
 
     const current = await readJsonFile(drive, file.id);
 
-    // Técnico no puede editar fichas que no son suyas
+    // Técnico no puede editar fichas de otro técnico (solo si el dueño está definido)
     if (req.user.rol === 'tecnico') {
       const dueno = (current.tecnico || '').toLowerCase();
       if (dueno && dueno !== req.user.nombre.toLowerCase()) {
