@@ -389,5 +389,32 @@ app.get('/', (req, res) => {
   res.json({ app: 'Ronni GSM Backend', version: '2.0', status: 'ok' });
 });
 
+// GET /next-id — devuelve el siguiente ID global correlativo
+app.get('/next-id', authMiddleware, async (req, res) => {
+  try {
+    const drive = await getDrive();
+    const files = await drive.files.list({
+      q: `'${FOLDER_ID}' in parents and trashed=false and name != 'usuarios.json' and not name contains 'egresos_'`,
+      fields: 'files(id, name)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    // Extraer números de todos los archivos GSM-XXX.json
+    const nums = files.data.files
+      .map(f => f.name.replace('.json', ''))
+      .filter(n => n.match(/^GSM-\d+$/))
+      .map(n => parseInt(n.replace('GSM-', '')))
+      .filter(n => !isNaN(n));
+
+    const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    const id   = 'GSM-' + String(next).padStart(3, '0');
+
+    res.json({ id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Ronni GSM API v2.0 en http://localhost:${PORT}`));
